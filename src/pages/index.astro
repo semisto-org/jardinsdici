@@ -1,0 +1,146 @@
+---
+import { getCollection, getEntry } from "astro:content";
+import { Image } from "astro:assets";
+import Base from "../layouts/Base.astro";
+import EventCard from "../components/EventCard.astro";
+import PageCard from "../components/PageCard.astro";
+import { eventsSplit, childPages } from "../lib/content";
+import hero from "../assets/images/hero-vue-aerienne.jpg";
+
+const site = (await getEntry("site", "main"))!.data;
+const { upcoming, past } = await eventsSplit();
+const next = upcoming.length ? upcoming.slice(0, 3) : past.slice(0, 3);
+const spaces = await childPages("espaces");
+const facts = (await getCollection("facts")).sort((a, b) => a.data.order - b.data.order);
+const fact = facts[new Date().getUTCDate() % facts.length];
+---
+
+<Base title="Accueil">
+  <section class="hero">
+    <div class="wrap hero-grid">
+      <div class="hero-text">
+        <p class="hand rise">Bienvenue aux Jardins d’ici !</p>
+        <h1 class="rise d1">Redonner de l’espace <span>au vivant</span>, à deux pas de la N4.</h1>
+        {site.intro.map((p, i) => <p class={`lede rise d${i + 2}`}>{p}</p>)}
+        <div class="hero-actions rise d3">
+          <a class="btn" href="/espaces">Découvrir les espaces</a>
+          <a class="btn ghost" href="/agenda">Voir l’agenda</a>
+        </div>
+      </div>
+      <figure class="hero-img rise d2">
+        <Image src={hero} alt="Vue aérienne des Jardins d’ici : la forêt nourricière, les massifs et le parking du magasin d’ici" widths={[600, 1000, 1500]} sizes="(max-width: 900px) 100vw, 50vw" loading="eager" fetchpriority="high" />
+        <figcaption class="hand">les jardins vus du ciel, septembre 2026 ↗</figcaption>
+      </figure>
+    </div>
+  </section>
+
+  <section class="stats">
+    <div class="wrap">
+      <h2>Les jardins en quelques chiffres</h2>
+      <ul class="stat-list">
+        {site.stats.map((s) => (
+          <li>
+            <a href={s.href ?? "#"}>
+              <strong>{s.value}</strong>
+              <span>{s.label}</span>
+            </a>
+          </li>
+        ))}
+      </ul>
+    </div>
+  </section>
+
+  <section class="wrap block">
+    <div class="block-head">
+      <h2>{upcoming.length ? "Prochains rendez-vous à ne pas rater" : "Derniers rendez-vous"}</h2>
+      <a href="/agenda">Tout l’agenda et les éditions précédentes →</a>
+    </div>
+    <div class="events">{next.map((e) => <EventCard event={e} past={!upcoming.length} />)}</div>
+  </section>
+
+  <section class="wrap block">
+    <div class="block-head">
+      <h2>Des jardins ouverts à tous</h2>
+      <a href="/espaces">Tous les espaces →</a>
+    </div>
+    <div class="spaces">{spaces.slice(0, 4).map((p, i) => <PageCard page={p} index={i} />)}</div>
+  </section>
+
+  {fact && (
+    <section class="wrap block">
+      <a class="fact" href="/le-saviez-vous">
+        {fact.data.image && <Image src={fact.data.image} alt="" widths={[300, 600]} sizes="240px" />}
+        <div>
+          <p class="hand">Le saviez-vous ?</p>
+          <h3>{fact.data.title}</h3>
+          <span>Découvrir les secrets du jardin →</span>
+        </div>
+      </a>
+    </section>
+  )}
+
+  <section class="wrap block cta-row">
+    <a class="cta" href="/ecole"><span class="hand">Enseignant·e ?</span><strong>Faites classe au jardin</strong><span>Des visites de 2 à 3 heures pour les classes primaires, au fil des saisons.</span></a>
+    <a class="cta alt" href="/benevolat"><span class="hand">Envie de mettre les mains dans la terre ?</span><strong>Rejoignez les chantiers</strong><span>Aucune compétence requise : juste de la bonne humeur et des bottes.</span></a>
+  </section>
+</Base>
+
+<style>
+  .hero { padding: clamp(2rem, 6vw, 4.5rem) 0 3rem; }
+  .hero-grid { display: grid; grid-template-columns: 1.05fr 0.95fr; gap: clamp(2rem, 5vw, 4rem); align-items: center; }
+  .hero .hand { font-size: 2rem; margin: 0 0 0.4rem; transform: rotate(-2deg); transform-origin: left; }
+  .hero h1 span { color: var(--moss); font-style: italic; }
+  .lede { color: var(--ink-soft); font-size: 1.1rem; max-width: 56ch; }
+  .hero-actions { display: flex; flex-wrap: wrap; gap: 0.7rem; margin-top: 1.5rem; }
+  .hero-img { margin: 0; position: relative; }
+  .hero-img img {
+    width: 100%; aspect-ratio: 1; object-fit: cover; object-position: 50% 85%;
+    border-radius: 48% 52% 44% 56% / 40% 42% 58% 60%;
+    box-shadow: var(--shadow);
+  }
+  .hero-img figcaption { position: absolute; bottom: -0.6rem; left: -1rem; font-size: 1.5rem; transform: rotate(-4deg); background: var(--paper); padding: 0.1em 0.5em; border-radius: 8px; }
+
+  .stats { background: var(--ink); color: var(--paper); padding: 3.5rem 0; margin: 2rem 0 4rem; position: relative; }
+  .stats h2 { color: var(--paper); }
+  .stat-list { list-style: none; padding: 0; margin: 2rem 0 0; display: grid; grid-template-columns: repeat(4, 1fr); gap: 1.5rem; }
+  .stat-list a { display: block; color: var(--paper); text-decoration: none; border-top: 2px solid var(--leaf); padding-top: 1rem; }
+  .stat-list a:hover { color: var(--sun); }
+  .stat-list strong { display: block; font-family: var(--font-display); font-weight: 400; font-size: clamp(2.8rem, 6vw, 4.2rem); line-height: 1; color: var(--sun); }
+  .stat-list span { display: block; margin-top: 0.5rem; font-size: 0.98rem; opacity: 0.9; }
+
+  .block { margin-top: 4.5rem; }
+  .block-head { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 0.5rem 2rem; margin-bottom: 1.5rem; }
+  .block-head h2 { margin: 0; }
+  .events { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 320px), 1fr)); gap: 1.5rem; }
+  .spaces { display: grid; grid-template-columns: repeat(4, 1fr); gap: 1.6rem; }
+
+  .fact {
+    display: grid; grid-template-columns: 220px 1fr; gap: 2rem; align-items: center;
+    background: var(--card); border-radius: var(--radius); padding: 1.2rem; box-shadow: var(--shadow);
+    color: var(--ink); text-decoration: none; border: 2px dashed var(--line);
+  }
+  .fact img { width: 100%; aspect-ratio: 1; object-fit: cover; border-radius: 50%; }
+  .fact .hand { font-size: 1.8rem; margin: 0; }
+  .fact h3 { font-size: 1.6rem; margin: 0.2rem 0 0.5rem; }
+  .fact span { color: var(--moss); font-weight: 600; }
+
+  .cta-row { display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem; }
+  .cta { display: grid; gap: 0.4rem; padding: 2rem; border-radius: var(--radius); background: var(--leaf); color: var(--ink); text-decoration: none; transition: transform 0.25s; }
+  .cta.alt { background: var(--sun); }
+  .cta:hover { transform: rotate(-0.8deg) translateY(-3px); color: var(--ink); }
+  .cta .hand { color: var(--ink); font-size: 1.6rem; }
+  .cta strong { font-family: var(--font-display); font-weight: 400; font-size: 1.9rem; line-height: 1.1; }
+
+  @media (max-width: 900px) {
+    .hero-grid { grid-template-columns: 1fr; }
+    .hero-img img { aspect-ratio: 4 / 3; }
+    .stat-list { grid-template-columns: repeat(2, 1fr); }
+    .spaces { grid-template-columns: repeat(2, 1fr); }
+    .cta-row { grid-template-columns: 1fr; }
+  }
+  @media (max-width: 560px) {
+    .spaces { grid-template-columns: 1fr; }
+    .fact { grid-template-columns: 1fr; text-align: center; }
+    .fact img { width: 160px; margin: 0 auto; }
+  }
+</style>

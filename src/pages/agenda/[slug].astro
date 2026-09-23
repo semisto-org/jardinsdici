@@ -1,0 +1,25 @@
+---
+import { getCollection, render } from "astro:content";
+import { Image } from "astro:assets";
+import Base from "../../layouts/Base.astro";
+import PageHeader from "../../components/PageHeader.astro";
+import { formatDate, excerpt, type Event } from "../../lib/content";
+
+export async function getStaticPaths() {
+  return (await getCollection("events")).map((event) => ({ params: { slug: event.id }, props: { event } }));
+}
+const { event } = Astro.props as { event: Event };
+const { Content } = await render(event);
+const { title, date, endDate, time, cover, link, summary } = event.data;
+const when = formatDate(date) + (endDate ? ` → ${formatDate(endDate)}` : "") + (time ? ` · ${time}` : "");
+---
+
+<Base title={title} description={summary ?? excerpt(event.body)}>
+  <PageHeader title={title} kicker={when} crumbs={[{ href: "/agenda", title: "Agenda" }]} />
+  <article class="narrow prose">
+    {cover && <Image src={cover} alt="" widths={[600, 1000]} sizes="(max-width: 800px) 100vw, 760px" />}
+    <Content />
+    {link && <p><a class="btn" href={link}>Plus d’infos et inscriptions</a></p>}
+    <p><a href="/agenda">← Tout l’agenda</a></p>
+  </article>
+</Base>

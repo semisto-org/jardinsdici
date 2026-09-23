@@ -1,0 +1,31 @@
+---
+import { getCollection, render } from "astro:content";
+import Base from "../layouts/Base.astro";
+import PageHeader from "../components/PageHeader.astro";
+
+const items = (await getCollection("faq")).sort((a, b) => a.data.order - b.data.order);
+const rendered = await Promise.all(items.map(async (q) => ({ q, Content: (await render(q)).Content })));
+---
+
+<Base title="Questions fréquentes" description="Accès, chiens, pique-nique, parking, écoles, bénévolat : les réponses pratiques.">
+  <PageHeader title="Questions fréquentes" description="Tout ce qu’on nous demande souvent avant de venir aux Jardins d’ici." kicker="Bon à savoir" />
+  <section class="narrow">
+    {rendered.map(({ q, Content }) => (
+      <details class="q">
+        <summary>{q.data.question}</summary>
+        <div class="prose"><Content /></div>
+      </details>
+    ))}
+    <p class="more">Vous n'avez pas trouvé la réponse à votre question ? <a href="/infos-pratiques">Écrivez-nous</a>.</p>
+  </section>
+</Base>
+
+<style>
+  .q { background: var(--card); border-radius: var(--radius); margin-bottom: 0.8rem; box-shadow: var(--shadow); }
+  summary { cursor: pointer; padding: 1.1rem 1.3rem; font-family: var(--font-display); font-size: 1.2rem; list-style: none; display: flex; justify-content: space-between; gap: 1rem; }
+  summary::-webkit-details-marker { display: none; }
+  summary::after { content: "+"; font-family: var(--font-body); font-size: 1.5rem; line-height: 1; color: var(--apple); transition: transform 0.2s; }
+  .q[open] summary::after { transform: rotate(45deg); }
+  .q .prose { padding: 0 1.3rem 1rem; }
+  .more { margin-top: 2rem; }
+</style>

@@ -1,0 +1,25 @@
+---
+import { Image } from "astro:assets";
+import { getEntry } from "astro:content";
+import Base from "../layouts/Base.astro";
+import PageHeader from "../components/PageHeader.astro";
+
+// Toute image déposée dans src/assets/galerie apparaît ici, de la plus récente à la plus ancienne (nom de fichier).
+const files = import.meta.glob<{ default: ImageMetadata }>("../assets/galerie/*.{jpg,jpeg,png,webp}", { eager: true });
+const photos = Object.entries(files).sort(([a], [b]) => b.localeCompare(a)).map(([, m]) => m.default);
+const site = (await getEntry("site", "main"))!.data;
+---
+
+<Base title="Galerie photo" description="Les Jardins d’ici en images, de 2014 à aujourd’hui.">
+  <PageHeader title="Galerie photo" description="Les Jardins d’ici en images, des premières saisons maraîchères de 2014 à la forêt nourricière d’aujourd’hui." kicker="Au fil des saisons" />
+  <section class="wrap gal">
+    {photos.map((p) => <Image src={p} alt="Photo des Jardins d’ici" widths={[400, 800]} sizes="(max-width: 700px) 50vw, 300px" />)}
+  </section>
+  <p class="wrap more"><a class="btn ghost" href={site.photosUrl}>Voir tout l’album photo</a></p>
+</Base>
+
+<style>
+  .gal { columns: 3 260px; column-gap: 1rem; }
+  .gal img { width: 100%; margin-bottom: 1rem; border-radius: 10px; break-inside: avoid; box-shadow: var(--shadow); }
+  .more { margin-top: 2rem; text-align: center; }
+</style>

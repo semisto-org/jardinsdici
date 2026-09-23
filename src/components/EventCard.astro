@@ -1,0 +1,51 @@
+---
+import { Image } from "astro:assets";
+import type { Event } from "../lib/content";
+import { day, month, year, excerpt } from "../lib/content";
+
+interface Props { event: Event; past?: boolean }
+const { event, past = false } = Astro.props;
+const { title, date, cover, summary } = event.data;
+---
+
+<a class:list={["event", { past, "no-cover": !cover }]} href={`/agenda/${event.id}`}>
+  {cover && <Image src={cover} alt="" widths={[400, 800]} sizes="(max-width: 700px) 100vw, 380px" class="thumb" />}
+  <div class="cal" aria-hidden="true">
+    <span class="rings"><i></i><i></i></span>
+    <span class="d">{day(date)}</span>
+    <span class="m">{month(date)}</span>
+    {past && <span class="y">{year(date)}</span>}
+  </div>
+  <div class="body">
+    <h3>{title}</h3>
+    <p>{summary ?? excerpt(event.body, 130)}</p>
+  </div>
+</a>
+
+<style>
+  .event {
+    position: relative; display: flex; flex-direction: column;
+    border-radius: var(--radius); background: var(--card); overflow: visible;
+    color: var(--ink); text-decoration: none; box-shadow: var(--shadow);
+    transition: transform 0.25s ease;
+  }
+  .event:hover { transform: translateY(-3px) rotate(-0.4deg); color: var(--ink); }
+  .thumb { width: 100%; aspect-ratio: 16 / 9; object-fit: cover; border-radius: var(--radius) var(--radius) 0 0; }
+  .cal {
+    position: absolute; top: 12px; left: 14px; width: 70px; padding: 14px 0 8px; text-align: center;
+    background: #fff; border: 2px solid var(--ink); border-radius: 10px;
+    box-shadow: 3px 3px 0 var(--apple);
+  }
+  .no-cover .cal { position: relative; top: auto; left: auto; margin: 1.2rem 0 0 1.2rem; }
+  .cal::before { content: ""; position: absolute; inset: 0 0 auto; height: 12px; background: var(--apple); border-radius: 7px 7px 0 0; }
+  .rings { position: absolute; top: -7px; left: 0; right: 0; display: flex; justify-content: space-around; }
+  .rings i { width: 6px; height: 14px; border-radius: 3px; background: var(--ink); }
+  .d { display: block; font-family: var(--font-display); font-size: 1.9rem; line-height: 1.1; margin-top: 4px; }
+  .m { display: block; font-weight: 700; text-transform: uppercase; font-size: 0.75rem; letter-spacing: 0.08em; }
+  .y { display: block; font-size: 0.72rem; color: var(--ink-soft); }
+  .past .cal { box-shadow: 3px 3px 0 var(--line); }
+  .past .cal::before { background: var(--ink-soft); }
+  .body { padding: 1rem 1.2rem 1.3rem; }
+  h3 { font-size: 1.25rem; margin-bottom: 0.3em; }
+  p { margin: 0; color: var(--ink-soft); font-size: 0.97rem; }
+</style>

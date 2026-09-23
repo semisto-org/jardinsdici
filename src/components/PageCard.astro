@@ -1,0 +1,42 @@
+---
+import { Image } from "astro:assets";
+import type { Page } from "../lib/content";
+import { excerpt } from "../lib/content";
+
+interface Props { page: Page; index?: number }
+const { page, index = 0 } = Astro.props;
+const { title, description, cover } = page.data;
+const tilt = [-1.2, 0.8, -0.5, 1.1, -0.9][index % 5];
+---
+
+<a class="card" href={`/${page.id}`} style={`--tilt:${tilt}deg`}>
+  {cover ? (
+    <Image src={cover} alt="" widths={[400, 800]} sizes="(max-width: 700px) 100vw, 380px" class="img" />
+  ) : (
+    <div class="img placeholder" aria-hidden="true">🌿</div>
+  )}
+  <div class="tag">
+    <h3>{title}</h3>
+    <p>{description ?? excerpt(page.body, 110)}</p>
+    <span class="go" aria-hidden="true">Découvrir →</span>
+  </div>
+</a>
+
+<style>
+  .card {
+    display: flex; flex-direction: column; border-radius: var(--radius); overflow: hidden;
+    background: var(--card); color: var(--ink); text-decoration: none; box-shadow: var(--shadow);
+    transform: rotate(var(--tilt)); transition: transform 0.3s ease;
+  }
+  .card:hover { transform: rotate(0deg) translateY(-4px); color: var(--ink); }
+  .img { width: 100%; aspect-ratio: 4 / 3; object-fit: cover; }
+  .placeholder { display: grid; place-items: center; font-size: 3rem; background: linear-gradient(135deg, var(--leaf), var(--moss)); }
+  .tag { position: relative; padding: 1.1rem 1.2rem 1.3rem; }
+  .tag::before {
+    content: ""; position: absolute; top: -9px; right: 22px; width: 16px; height: 16px; border-radius: 50%;
+    background: var(--paper); box-shadow: inset 0 0 0 3px var(--card), inset 0 0 0 5px var(--line);
+  }
+  h3 { font-size: 1.3rem; margin-bottom: 0.3em; }
+  p { margin: 0 0 0.6em; color: var(--ink-soft); font-size: 0.97rem; }
+  .go { font-family: var(--font-hand); font-size: 1.35rem; color: var(--apple); }
+</style>

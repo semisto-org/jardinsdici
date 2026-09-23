@@ -1,0 +1,73 @@
+---
+import { getCollection, render } from "astro:content";
+import { Image } from "astro:assets";
+import Base from "../layouts/Base.astro";
+import PageHeader from "../components/PageHeader.astro";
+import PageCard from "../components/PageCard.astro";
+import { childPages, breadcrumb, type Page } from "../lib/content";
+
+export async function getStaticPaths() {
+  const pages = await getCollection("pages");
+  return pages.map((page) => ({ params: { slug: page.id }, props: { page } }));
+}
+
+const { page } = Astro.props as { page: Page };
+const { Content } = await render(page);
+const children = await childPages(page.id);
+const crumbs = await breadcrumb(page.id);
+const partners = page.id === "projet" ? (await getCollection("partners")).sort((a, b) => a.data.order - b.data.order) : [];
+---
+
+<Base title={page.data.title} description={page.data.description}>
+  <PageHeader title={page.data.title} description={page.data.description} cover={page.data.cover} crumbs={crumbs} />
+
+  {children.length > 0 && page.id === "espaces" && (
+    <section class="wrap grid-cards">
+      {children.map((c, i) => <PageCard page={c} index={i} />)}
+    </section>
+  )}
+
+  <article class="narrow prose">
+    <Content />
+  </article>
+
+  {children.length > 0 && page.id !== "espaces" && (
+    <section class="wrap sub">
+      <p class="hand">Pour aller plus loin…</p>
+      <div class="grid-cards">
+        {children.map((c, i) => <PageCard page={c} index={i} />)}
+      </div>
+    </section>
+  )}
+
+  {partners.length > 0 && (
+    <section class="wrap partners" id="partenaires">
+      <h2>Nos partenaires</h2>
+      <p class="intro">Les Jardins d’ici, c'est une coalition d'énergies locales. Chacun gère son bout de terrain, avec sa patte et ses expertises.</p>
+      <div class="p-grid">
+        {partners.map((p) => (
+          <div class="partner">
+            {p.data.image ? <Image src={p.data.image} alt="" widths={[320, 640]} sizes="(max-width: 700px) 100vw, 280px" /> : <div class="p-ph" aria-hidden="true">🤝</div>}
+            <h3>{p.data.url ? <a href={p.data.url}>{p.data.name}</a> : p.data.name}</h3>
+            <p><span class="hand">Son rôle :</span> {p.data.role.replace(/\*/g, "")}</p>
+          </div>
+        ))}
+      </div>
+    </section>
+  )}
+</Base>
+
+<style>
+  .grid-cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 270px), 1fr)); gap: 1.8rem; margin-bottom: 3rem; }
+  .sub { margin-top: 4rem; }
+  .sub .hand { font-size: 2rem; margin-bottom: 1.2rem; }
+  .partners { margin-top: 5rem; }
+  .partners .intro { max-width: 60ch; color: var(--ink-soft); }
+  .p-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 250px), 1fr)); gap: 1.5rem; margin-top: 2rem; }
+  .partner { background: var(--card); border-radius: var(--radius); padding: 1rem; box-shadow: var(--shadow); }
+  .partner img, .p-ph { width: 100%; aspect-ratio: 16 / 10; object-fit: cover; border-radius: 10px; margin-bottom: 0.9rem; }
+  .p-ph { display: grid; place-items: center; font-size: 2.5rem; background: var(--paper-deep); }
+  .partner h3 { font-size: 1.2rem; }
+  .partner p { font-size: 0.97rem; color: var(--ink-soft); margin: 0; }
+  .partner .hand { font-size: 1.3rem; }
+</style>

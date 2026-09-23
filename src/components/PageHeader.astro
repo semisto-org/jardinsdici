@@ -1,0 +1,50 @@
+---
+import { Image } from "astro:assets";
+import type { ImageMetadata } from "astro";
+
+interface Props {
+  title: string;
+  description?: string;
+  cover?: ImageMetadata;
+  crumbs?: { href: string; title: string }[];
+  kicker?: string;
+}
+const { title, description, cover, crumbs = [], kicker } = Astro.props;
+---
+
+<header class:list={["ph", { "has-cover": cover }]}>
+  <div class="wrap ph-grid">
+    <div class="ph-text">
+      {crumbs.length > 0 && (
+        <nav class="crumbs rise" aria-label="Fil d’Ariane">
+          <a href="/">Accueil</a>
+          {crumbs.map((c) => (<><span aria-hidden="true">/</span><a href={c.href}>{c.title}</a></>))}
+        </nav>
+      )}
+      {kicker && <p class="hand kicker rise">{kicker}</p>}
+      <h1 class="rise d1">{title}</h1>
+      {description && <p class="lede rise d2">{description}</p>}
+    </div>
+    {cover && (
+      <div class="ph-img rise d2">
+        <Image src={cover} alt="" widths={[480, 800, 1200]} sizes="(max-width: 860px) 100vw, 45vw" loading="eager" fetchpriority="high" />
+      </div>
+    )}
+  </div>
+</header>
+
+<style>
+  .ph { padding: clamp(2rem, 6vw, 4.5rem) 0 clamp(1.5rem, 4vw, 3rem); }
+  .ph-grid { display: grid; gap: 2.5rem; align-items: center; }
+  .has-cover .ph-grid { grid-template-columns: 1.1fr 0.9fr; }
+  .crumbs { display: flex; flex-wrap: wrap; gap: 0.4rem; font-size: 0.92rem; margin-bottom: 1rem; color: var(--ink-soft); }
+  .crumbs a { color: var(--ink-soft); }
+  .kicker { font-size: 1.8rem; margin: 0 0 0.3rem; transform: rotate(-2deg); transform-origin: left; }
+  .lede { font-size: 1.2rem; color: var(--ink-soft); max-width: 46ch; }
+  .ph-img img {
+    width: 100%; aspect-ratio: 5 / 4; object-fit: cover;
+    border-radius: 58% 42% 50% 50% / 46% 50% 50% 54%;
+    box-shadow: var(--shadow);
+  }
+  @media (max-width: 860px) { .has-cover .ph-grid { grid-template-columns: 1fr; } }
+</style>

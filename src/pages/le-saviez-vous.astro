@@ -1,0 +1,36 @@
+---
+import { getCollection, render } from "astro:content";
+import { Image } from "astro:assets";
+import Base from "../layouts/Base.astro";
+import PageHeader from "../components/PageHeader.astro";
+
+const facts = (await getCollection("facts")).sort((a, b) => a.data.order - b.data.order);
+const rendered = await Promise.all(facts.map(async (f) => ({ f, Content: (await render(f)).Content })));
+---
+
+<Base title="Le saviez-vous ?" description="Les petits et grands secrets de notre écosystème en transition.">
+  <PageHeader title="Le saviez-vous ?" description="Ici, chaque brin d'herbe, chaque insecte et chaque tas de bois a une histoire à raconter. Prenez le temps de flâner et découvrez les petits et grands secrets de notre écosystème en transition." kicker="Informations insolites" />
+  <section class="wrap facts">
+    {rendered.map(({ f, Content }, i) => (
+      <article class="fact" style={`--r:${i % 2 ? 1 : -1}deg`}>
+        {f.data.image && <Image src={f.data.image} alt="" widths={[400, 700]} sizes="(max-width: 700px) 100vw, 420px" />}
+        <div>
+          <p class="hand">Le saviez-vous ?</p>
+          <h2>{f.data.title}</h2>
+          <div class="prose"><Content /></div>
+          {f.data.source && <p class="src">Source : <a href={f.data.source.url}>{f.data.source.label}</a></p>}
+        </div>
+      </article>
+    ))}
+  </section>
+</Base>
+
+<style>
+  .facts { display: grid; gap: 3rem; }
+  .fact { display: grid; grid-template-columns: minmax(0, 0.8fr) minmax(0, 1.2fr); gap: 2rem; align-items: center; }
+  .fact:nth-child(even) img { order: 2; }
+  .fact img { width: 100%; aspect-ratio: 4 / 3; object-fit: cover; border-radius: var(--radius); transform: rotate(var(--r)); box-shadow: var(--shadow); border: 8px solid #fff; }
+  .fact .hand { font-size: 1.6rem; margin: 0; }
+  .src { font-size: 0.88rem; color: var(--ink-soft); }
+  @media (max-width: 760px) { .fact { grid-template-columns: 1fr; } .fact:nth-child(even) img { order: 0; } }
+</style>

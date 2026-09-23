@@ -1,0 +1,30 @@
+---
+import Base from "../../layouts/Base.astro";
+import PageHeader from "../../components/PageHeader.astro";
+import EventCard from "../../components/EventCard.astro";
+import { eventsSplit } from "../../lib/content";
+
+const { upcoming, past } = await eventsSplit();
+---
+
+<Base title="Agenda" description="Ateliers, balades, fêtes et chantiers aux Jardins d’ici.">
+  <PageHeader title="Agenda & événements" description="Ateliers, balades guidées, fêtes et chantiers participatifs : les rendez-vous des Jardins d’ici." kicker="On se voit bientôt ?" />
+  <section class="wrap">
+    <h2>À venir</h2>
+    {upcoming.length ? (
+      <div class="list">{upcoming.map((e) => <EventCard event={e} />)}</div>
+    ) : (
+      <p class="empty">Pas de rendez-vous annoncé pour l’instant. Inscrivez-vous à la newsletter pour être prévenu·e des prochaines dates.</p>
+    )}
+  </section>
+  <section class="wrap past">
+    <h2>Les éditions précédentes</h2>
+    <div class="list">{past.map((e) => <EventCard event={e} past />)}</div>
+  </section>
+</Base>
+
+<style>
+  .list { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 340px), 1fr)); gap: 1.5rem; }
+  .past { margin-top: 4rem; }
+  .empty { color: var(--ink-soft); }
+</style>
