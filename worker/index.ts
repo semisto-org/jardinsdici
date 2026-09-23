@@ -1,39 +1,44 @@
-// Worker du site : sert le site statique, et l'admin conversationnelle sous /admin et /api/admin.
+// Worker de l'admin conversationnelle. Il vit sur son propre domaine, séparé du site public :
+// rien de ce qui est publié sur le site ne peut s'exécuter dans l'origine de l'admin.
 import Anthropic from "@anthropic-ai/sdk";
 import adminPage from "./admin.html";
-import { authenticate, editorFromEmail, type AuthEnv, type Editor } from "./auth";
+import { authenticate, editorFromEmail, type Editor } from "./auth";
 import { GitHub } from "./github";
-import { SiteAgent, branchFor, previewUrl, type AgentEnv, type AgentEvent } from "./agent";
+import { branchFor } from "./agent";
 import { publishBranch } from "./publish";
+import type { Env } from "./env";
+import { addMessages, touch, lock, commitAuthor } from "./db";
 
-interface Env extends AuthEnv, AgentEnv {
-  ASSETS: Fetcher;
-  DB: D1Database;
-  GITHUB_TOKEN: string;
-  GITHUB_REPO: string;
-}
-
-type MessageParam = Anthropic.Beta.BetaMessageParam;
+export { ConversationRunner } from "./runner";
 
 const json = (data: unknown, status = 200) => new Response(JSON.stringify(data), { status, headers: { "Content-Type": "application/json; charset=utf-8", "Cache-Control": "no-store" } });
+const PHOTO_PATH = /^src\/assets\/images\/[a-z0-9-]+\.jpg$/;
+const MAX_PHOTOS = 6;
 
 export default {
-  async fetch(req: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
+  async fetch(req: Request, env: Env): Promise<Response> {
     const url = new URL(req.url);
-    const isAdmin = url.pathname === "/admin" || url.pathname.startsWith("/admin/") || url.pathname.startsWith("/api/admin/");
-    if (!isAdmin) return env.ASSETS.fetch(req);
+    if (url.pathname === "/favicon.png") return fetch(new URL("/favicon.png", env.SITE_URL));
 
     const editor = await authenticate(req, env);
-    if (!editor) return url.pathname.startsWith("/api/") ? json({ error: "Non autorisé" }, 401) : new Response("Accès réservé aux éditeurs du site.", { status: 403 });
+    if (!editor) return url.pathname.startsWith("/api/") ? json({ error: "Non autorisé" }, 401) : new Response("Accès réservé aux éditeurs du site des Jardins d'ici.", { status: 403 });
 
-    if (!url.pathname.startsWith("/api/")) {
-      return new Response(adminPage, { headers: { "Content-Type": "text/html; charset=utf-8", "Cache-Control": "no-store", "X-Frame-Options": "DENY" } });
+    if (url.pathname === "/" || url.pathname === "/admin") {
+      return new Response(adminPage, {
+        headers: {
+          "Content-Type": "text/html; charset=utf-8",
+          "Cache-Control": "no-store",
+          "X-Frame-Options": "DENY",
+          "Content-Security-Policy": "default-src 'self'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; img-src 'self' data: blob:; connect-src 'self'; frame-ancestors 'none'",
+        },
+      });
     }
-    // Les appels d'API viennent uniquement de la page d'admin (protection contre les requêtes intersites).
+    if (!url.pathname.startsWith("/api/admin/")) return json({ error: "Introuvable" }, 404);
+    // Les écritures viennent uniquement de la page d'admin (protection contre les requêtes intersites).
     if (req.method !== "GET" && req.headers.get("X-Admin-Request") !== "1") return json({ error: "Requête refusée" }, 403);
 
     try {
-      return await api(req, url, env, ctx, editor);
+      return await api(req, url, env, editor);
     } catch (e) {
       console.error(e);
       return json({ error: (e as Error).message }, 500);
@@ -41,29 +46,24 @@ export default {
   },
 } satisfies ExportedHandler<Env>;
 
-async function api(req: Request, url: URL, env: Env, ctx: ExecutionContext, editor: Editor): Promise<Response> {
+async function api(req: Request, url: URL, env: Env, editor: Editor): Promise<Response> {
   const parts = url.pathname.replace(/^\/api\/admin\/?/, "").split("/").filter(Boolean);
   const gh = new GitHub(env);
-  const now = () => Date.now();
 
   if (parts[0] === "me") {
     const names = Object.fromEntries(env.ADMIN_EMAILS.split(",").map((e) => e.trim()).filter(Boolean).map((e) => [e, editorFromEmail(e, env.ADMIN_NAMES).name]));
-    return json({ email: editor.email, name: editor.name, names });
+    return json({ email: editor.email, name: editor.name, names, site: env.SITE_URL });
   }
 
   if (parts[0] === "conversations" && parts.length === 1) {
     if (req.method === "GET") {
-      const { results } = await env.DB.prepare(
-        `SELECT c.*, (SELECT COUNT(*) FROM messages m WHERE m.conversation_id = c.id) AS message_count FROM conversations c ORDER BY updated_at DESC LIMIT 200`,
-      ).all();
+      const { results } = await env.DB.prepare(`SELECT * FROM conversations ORDER BY updated_at DESC LIMIT 200`).all();
       return json(results);
     }
     if (req.method === "POST") {
       const id = crypto.randomUUID().replace(/-/g, "").slice(0, 10);
-      const body = (await req.json().catch(() => ({}))) as { title?: string };
-      const title = (body.title ?? "Nouvelle conversation").slice(0, 80);
-      await env.DB.prepare(`INSERT INTO conversations (id, title, author, status, branch, created_at, updated_at) VALUES (?, ?, ?, 'ouverte', ?, ?, ?)`)
-        .bind(id, title, editor.email, branchFor(id), now(), now()).run();
+      await env.DB.prepare(`INSERT INTO conversations (id, title, author, status, branch, created_at, updated_at) VALUES (?, 'Nouvelle conversation', ?, 'ouverte', ?, ?, ?)`)
+        .bind(id, editor.email, branchFor(id), Date.now(), Date.now()).run();
       return json({ id }, 201);
     }
   }
@@ -73,114 +73,104 @@ async function api(req: Request, url: URL, env: Env, ctx: ExecutionContext, edit
   const conv = await env.DB.prepare(`SELECT * FROM conversations WHERE id = ?`).bind(id).first<Record<string, any>>();
   if (!conv) return json({ error: "Conversation introuvable" }, 404);
   const action = parts[2];
+  const active = conv.status === "ouverte" || conv.status === "apercu";
+  const runner = () => env.RUNNER.get(env.RUNNER.idFromName(id));
 
   if (!action && req.method === "GET") {
     const { results } = await env.DB.prepare(`SELECT id, role, author, content, created_at FROM messages WHERE conversation_id = ? ORDER BY id`).bind(id).all();
     return json({ conversation: conv, messages: results.map((m: any) => ({ ...m, content: JSON.parse(m.content) })) });
   }
 
+  if (action === "live" && req.method === "GET") {
+    return json({ conversation: conv, live: await runner().live() });
+  }
+
   if (action === "status" && req.method === "GET") {
-    // État de la mise en ligne après publication : déploiement de main en cours ou terminé.
-    let deploy: unknown = null;
-    if (conv.status === "publiee" && conv.published_sha) deploy = await gh.latestRun("main", conv.published_sha);
+    const deploy = conv.status === "publiee" && conv.published_sha ? await gh.latestRun("main", conv.published_sha) : null;
     return json({ conversation: conv, deploy });
+  }
+
+  if (action === "image" && req.method === "GET") {
+    const path = url.searchParams.get("path") ?? "";
+    if (!PHOTO_PATH.test(path)) return json({ error: "Chemin invalide" }, 400);
+    const bytes = (await gh.readRaw(conv.branch, path).catch(() => null)) ?? (await gh.readRaw("main", path));
+    if (!bytes) return json({ error: "Image introuvable" }, 404);
+    return new Response(bytes, { headers: { "Content-Type": "image/jpeg", "Cache-Control": "private, max-age=86400" } });
   }
 
   if (action === "upload" && req.method === "POST") {
     // Photo glissée dans le chat, déjà redimensionnée par le navigateur (JPEG).
+    if (!active) return json({ error: "Cette conversation est terminée." }, 409);
+    if (conv.busy) return json({ error: "Attendez que l'assistant ait fini." }, 409);
     const name = (url.searchParams.get("name") ?? "photo").normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase().replace(/\.[a-z]+$/, "").replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "").slice(0, 40) || "photo";
     const bytes = new Uint8Array(await req.arrayBuffer());
     if (bytes.length > 4_000_000) return json({ error: "Image trop lourde (4 Mo max après réduction)." }, 413);
     if (!(bytes[0] === 0xff && bytes[1] === 0xd8)) return json({ error: "Seules les images JPEG sont acceptées." }, 415);
     const path = `src/assets/images/${name}-${crypto.randomUUID().slice(0, 6)}.jpg`;
     await gh.ensureBranch(conv.branch);
-    await gh.writeFile(conv.branch, path, bytes, `Ajout de la photo ${path.split("/").pop()}`, editor);
+    await gh.writeFile(conv.branch, path, bytes, `Ajout de la photo ${path.split("/").pop()}`, commitAuthor(env, editor));
     await touch(env, id, { status: "ouverte", preview_url: null });
     return json({ path });
   }
 
+  if (action === "messages" && req.method === "POST") {
+    if (!active) return json({ error: "Cette conversation est terminée. Ouvrez-en une nouvelle." }, 409);
+    const body = (await req.json()) as { text?: string; photos?: string[] };
+    const text = (body.text ?? "").trim().slice(0, 8000);
+    const photos = (body.photos ?? []).filter((p) => typeof p === "string");
+    if (photos.length > MAX_PHOTOS) return json({ error: `${MAX_PHOTOS} photos maximum par message.` }, 400);
+    if (photos.some((p) => !PHOTO_PATH.test(p))) return json({ error: "Photo invalide." }, 400);
+    if (!text && !photos.length) return json({ error: "Message vide" }, 400);
+    if (!(await lock(env, id))) return json({ error: "L'assistant travaille déjà sur cette conversation." }, 409);
+
+    const dateFr = new Intl.DateTimeFormat("fr-BE", { weekday: "long", day: "numeric", month: "long", year: "numeric", timeZone: "Europe/Brussels" }).format(new Date());
+    const content = [
+      { type: "text", text: `[${editor.name}, ${dateFr}]\n${text}` },
+      ...photos.map((p) => ({ type: "text", text: `[Photo jointe, déjà ajoutée au site : ${p}]` })),
+    ];
+    await addMessages(env, id, [{ role: "user", author: editor.email, content }]);
+    if (conv.title === "Nouvelle conversation" && text) await touch(env, id, { title: text.slice(0, 70) + (text.length > 70 ? "…" : "") });
+    try {
+      await runner().start({ convId: id, editorEmail: editor.email });
+    } catch (e) {
+      await touch(env, id, { busy: 0 });
+      throw e;
+    }
+    return json({ ok: true }, 202);
+  }
+
   if (action === "publish" && req.method === "POST") {
-    const client = new Anthropic({ apiKey: env.ANTHROPIC_API_KEY });
-    const res = await publishBranch(gh, client, env.MODEL ?? "claude-opus-5", conv.branch, conv.title, editor);
-    if (!res.ok) return json({ error: res.reason }, 409);
-    await touch(env, id, { status: "publiee", published_sha: res.sha });
-    await addMessage(env, id, "user", editor.email, [{ type: "text", text: `[${editor.name} a cliqué sur « Publier »]` }]);
-    await addMessage(env, id, "assistant", null, [{ type: "text", text: `C'est publié ✅ Le site sera à jour d'ici une à deux minutes : ${env.SITE_URL}` }]);
-    return json({ ok: true, sha: res.sha, resolved: res.resolved });
+    if (conv.status !== "apercu") return json({ error: "Il n'y a pas d'aperçu prêt à publier." }, 409);
+    if (!(await lock(env, id))) return json({ error: "L'assistant travaille encore sur cette conversation." }, 409);
+    try {
+      const client = new Anthropic({ apiKey: env.ANTHROPIC_API_KEY });
+      const res = await publishBranch(gh, client, env.MODEL ?? "claude-opus-5", conv.branch, conv.title, commitAuthor(env, editor));
+      if (!res.ok) {
+        if (res.rebuilt) await touch(env, id, { status: "ouverte", preview_url: null });
+        await addMessages(env, id, [
+          { role: "user", author: editor.email, content: [{ type: "text", text: `[${editor.name} a cliqué sur « Publier »]` }] },
+          { role: "assistant", content: [{ type: "text", text: res.reason + (res.rebuilt ? " Écrivez-moi « publie » et je m'en occupe dès que l'aperçu est prêt." : "") }] },
+        ]);
+        return json({ error: res.reason, rebuilt: !!res.rebuilt }, 409);
+      }
+      await touch(env, id, { status: "publiee", published_sha: res.sha });
+      await addMessages(env, id, [
+        { role: "user", author: editor.email, content: [{ type: "text", text: `[${editor.name} a cliqué sur « Publier »]` }] },
+        { role: "assistant", content: [{ type: "text", text: `C'est parti ✅ Le site sera à jour d'ici une à deux minutes : ${env.SITE_URL}` }] },
+      ]);
+      return json({ ok: true, sha: res.sha });
+    } finally {
+      await touch(env, id, { busy: 0 });
+    }
   }
 
   if (action === "archive" && req.method === "POST") {
+    if (!active) return json({ error: "Cette conversation est déjà terminée." }, 409);
+    if (!(await lock(env, id))) return json({ error: "L'assistant travaille encore sur cette conversation." }, 409);
     await gh.deleteBranch(conv.branch);
-    await touch(env, id, { status: "abandonnee" });
+    await touch(env, id, { status: "abandonnee", busy: 0 });
     return json({ ok: true });
-  }
-
-  if (action === "messages" && req.method === "POST") {
-    if (conv.status === "publiee" || conv.status === "abandonnee") return json({ error: "Cette conversation est terminée. Ouvrez-en une nouvelle." }, 409);
-    if (conv.busy && now() - conv.updated_at < 10 * 60_000) return json({ error: "L'assistant travaille déjà sur cette conversation." }, 409);
-    const body = (await req.json()) as { text?: string; images?: { path: string; data: string }[] };
-    const text = (body.text ?? "").trim();
-    if (!text && !body.images?.length) return json({ error: "Message vide" }, 400);
-
-    const dateFr = new Intl.DateTimeFormat("fr-BE", { weekday: "long", day: "numeric", month: "long", year: "numeric", timeZone: "Europe/Brussels" }).format(new Date());
-    const content: Anthropic.Beta.BetaContentBlockParam[] = [{ type: "text", text: `[${editor.name}, ${dateFr}]\n${text}` }];
-    for (const img of body.images ?? []) {
-      content.push({ type: "image", source: { type: "base64", media_type: "image/jpeg", data: img.data } });
-      content.push({ type: "text", text: `[Photo jointe, déjà ajoutée au site : ${img.path}]` });
-    }
-    await addMessage(env, id, "user", editor.email, content);
-    if (conv.title === "Nouvelle conversation" && text) await touch(env, id, { title: text.slice(0, 70) + (text.length > 70 ? "…" : "") });
-    await touch(env, id, { busy: 1 });
-
-    const history = await loadHistory(env, id);
-    const { readable, writable } = new TransformStream();
-    const writer = writable.getWriter();
-    const enc = new TextEncoder();
-    let open = true;
-    const send = (e: AgentEvent | { type: "done" }) => {
-      if (!open) return;
-      writer.write(enc.encode(`data: ${JSON.stringify(e)}\n\n`)).catch(() => { open = false; });
-    };
-
-    const agent = new SiteAgent(env, gh, { id, title: conv.title, branch: conv.branch }, editor, send,
-      async (s) => touch(env, id, { status: s.status, ...(s.preview_url !== undefined ? { preview_url: s.preview_url } : {}) }));
-    const work = agent
-      .run(history, async (msgs) => { for (const m of msgs) await addMessage(env, id, m.role, null, m.content as unknown[]); })
-      .catch(async (e) => {
-        console.error(e);
-        const message = e instanceof Anthropic.AuthenticationError ? "La clé API de l'assistant est invalide." : `Oups, un souci technique : ${(e as Error).message}`;
-        send({ type: "error", message });
-        await addMessage(env, id, "assistant", null, [{ type: "text", text: message }]);
-      })
-      .finally(async () => {
-        await touch(env, id, { busy: 0 });
-        send({ type: "done" });
-        if (open) await writer.close().catch(() => {});
-      });
-    ctx.waitUntil(work);
-    return new Response(readable, { headers: { "Content-Type": "text/event-stream; charset=utf-8", "Cache-Control": "no-store" } });
   }
 
   return json({ error: "Introuvable" }, 404);
 }
-
-async function addMessage(env: Env, id: string, role: string, author: string | null, content: unknown[] | string) {
-  const blocks = typeof content === "string" ? [{ type: "text", text: content }] : content;
-  await env.DB.prepare(`INSERT INTO messages (conversation_id, role, author, content, created_at) VALUES (?, ?, ?, ?, ?)`)
-    .bind(id, role, author, JSON.stringify(blocks), Date.now()).run();
-  await env.DB.prepare(`UPDATE conversations SET updated_at = ? WHERE id = ?`).bind(Date.now(), id).run();
-}
-
-const COLUMNS = new Set(["title", "status", "preview_url", "busy", "published_sha"]);
-async function touch(env: Env, id: string, fields: Record<string, unknown>) {
-  const keys = Object.keys(fields).filter((k) => COLUMNS.has(k));
-  const sets = [...keys.map((k) => `${k} = ?`), "updated_at = ?"].join(", ");
-  await env.DB.prepare(`UPDATE conversations SET ${sets} WHERE id = ?`).bind(...keys.map((k) => fields[k] ?? null), Date.now(), id).run();
-}
-
-async function loadHistory(env: Env, id: string): Promise<MessageParam[]> {
-  const { results } = await env.DB.prepare(`SELECT role, content FROM messages WHERE conversation_id = ? ORDER BY id`).bind(id).all<{ role: "user" | "assistant"; content: string }>();
-  return results.map((m) => ({ role: m.role, content: JSON.parse(m.content) }));
-}
-
-export { previewUrl };

@@ -55,3 +55,13 @@ test("tous les contenus actuels du site passent la validation", async () => {
   }
   expect(validateContent("src/content/site.yaml", await Bun.file("src/content/site.yaml").text(), all)).toEqual([]);
 });
+
+test("HTML actif et liens javascript: refusés", () => {
+  const ev = (body: string) => validateContent("src/content/events/2026-10-04-b.md", `---\ntitle: B\ndate: 2026-10-04\n---\n\n${body}\n`, assets);
+  expect(ev('<script src="https://x.io/a.js"></script>').length).toBeGreaterThan(0);
+  expect(ev('<iframe src="https://x.io"></iframe>').length).toBeGreaterThan(0);
+  expect(ev('<img src=x onerror="alert(1)">').length).toBeGreaterThan(0);
+  expect(ev("[clic](javascript:alert(1))").length).toBeGreaterThan(0);
+  expect(ev("Un texte *normal* avec un [lien](https://www.d-ici.be).")).toEqual([]);
+  expect(validateContent("src/content/events/2026-10-04-b.md", '---\ntitle: B\ndate: 2026-10-04\nlink: "javascript:alert(1)"\n---\n', assets).length).toBeGreaterThan(0);
+});

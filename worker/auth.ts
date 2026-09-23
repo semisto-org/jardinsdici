@@ -38,8 +38,8 @@ function cookie(req: Request, name: string): string | null {
 
 let jwksCache: { at: number; keys: JsonWebKey[] } | null = null;
 
-async function jwks(team: string): Promise<JsonWebKey[]> {
-  if (jwksCache && Date.now() - jwksCache.at < 3600_000) return jwksCache.keys;
+async function jwks(team: string, force = false): Promise<JsonWebKey[]> {
+  if (!force && jwksCache && Date.now() - jwksCache.at < 3600_000) return jwksCache.keys;
   const res = await fetch(`https://${team}/cdn-cgi/access/certs`);
   if (!res.ok) throw new Error(`JWKS Access indisponible (${res.status})`);
   const keys = ((await res.json()) as { keys: JsonWebKey[] }).keys;
@@ -56,7 +56,8 @@ export async function verifyAccessJwt(token: string, team: string, aud: string):
     const header = JSON.parse(new TextDecoder().decode(b64url(parts[0])));
     const payload = JSON.parse(new TextDecoder().decode(b64url(parts[1])));
     if (header.alg !== "RS256") return null;
-    const jwk = (await jwks(team)).find((k: any) => k.kid === header.kid);
+    // Clé inconnue : Access a peut-être fait tourner ses clés, on recharge une fois.
+    const jwk = (await jwks(team)).find((k: any) => k.kid === header.kid) ?? (await jwks(team, true)).find((k: any) => k.kid === header.kid);
     if (!jwk) return null;
     const key = await crypto.subtle.importKey("jwk", jwk, { name: "RSASSA-PKCS1-v1_5", hash: "SHA-256" }, false, ["verify"]);
     const ok = await crypto.subtle.verify("RSASSA-PKCS1-v1_5", key, b64url(parts[2]), new TextEncoder().encode(`${parts[0]}.${parts[1]}`));

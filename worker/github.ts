@@ -60,8 +60,14 @@ export class GitHub {
     return { content: decodeBase64Utf8(r.data.content), sha: r.data.sha };
   }
 
-  async readFileAtCommit(sha: string, path: string): Promise<string | null> {
-    return (await this.readFile(sha, path))?.content ?? null;
+  /** Octets bruts d'un fichier (images), quelle que soit sa taille. */
+  async readRaw(ref: string, path: string): Promise<Uint8Array | null> {
+    const res = await fetch(`https://api.github.com/repos/${this.env.GITHUB_REPO}/contents/${encodePath(path)}?ref=${encodeURIComponent(ref)}`, {
+      headers: { Authorization: `Bearer ${this.env.GITHUB_TOKEN}`, Accept: "application/vnd.github.raw", "User-Agent": "jardinsdici-admin", "X-GitHub-Api-Version": "2022-11-28" },
+    });
+    if (res.status === 404) return null;
+    if (!res.ok) throw new GitHubError(res.status, `GitHub raw ${path} → ${res.status}`);
+    return new Uint8Array(await res.arrayBuffer());
   }
 
   async writeFile(branch: string, path: string, content: string | Uint8Array, message: string, author: Author): Promise<string> {
@@ -94,7 +100,7 @@ export class GitHub {
     return {
       mergeBase: r.data.merge_base_commit.sha as string,
       ahead: r.data.ahead_by as number,
-      files: (r.data.files ?? []).map((f: any) => ({ path: f.filename as string, status: f.status as string })),
+      files: (r.data.files ?? []).map((f: any) => ({ path: f.filename as string, status: f.status as string, previous: (f.previous_filename as string | undefined) ?? null })),
     };
   }
 
@@ -153,9 +159,9 @@ function decodeBase64Utf8(b64: string): string {
 // --- Git Data API : utilisé pour reconstruire une branche au-dessus de main lors d'un conflit ---
 export interface TreeChange { path: string; sha: string | null } // sha null = suppression
 
-export async function rebuildBranchOnMain(gh: GitHub, branch: string, changes: TreeChange[], message: string, author: Author): Promise<string> {
+/** Reconstruit la branche au-dessus du commit de main `mainSha` (celui sur lequel la fusion a été calculée). */
+export async function rebuildBranchOnMain(gh: GitHub, branch: string, mainSha: string, changes: TreeChange[], message: string, author: Author): Promise<string> {
   const api = gh.api.bind(gh);
-  const mainSha = (await gh.headSha("main"))!;
   const mainCommit = await api(`/git/commits/${mainSha}`);
   const tree = await api(`/git/trees`, {
     method: "POST",
@@ -174,3 +180,5 @@ export async function createBlob(gh: GitHub, content: string): Promise<string> {
   const r = await api(`/git/blobs`, { method: "POST", body: JSON.stringify({ content, encoding: "utf-8" }) });
   return r.data.sha;
 }
+
+export const bytesToB64 = bytesToBase64;

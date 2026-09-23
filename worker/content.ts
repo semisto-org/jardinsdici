@@ -36,19 +36,31 @@ function resolveRelative(fromFile: string, rel: string): string {
   return parts.join("/");
 }
 
+// Le contenu est rendu tel quel par Astro : pas de HTML actif, pas de liens javascript:.
+const DANGEROUS = [
+  { re: /<\s*(script|iframe|object|embed|style|form|input|button|link|meta|base|svg|math)\b/i, msg: "Pas de balise HTML active (script, iframe, formulaire, style…) dans le contenu : pour intégrer un service externe, mets simplement un lien." },
+  { re: /\son[a-z]+\s*=/i, msg: "Pas d'attribut HTML d'événement (onclick, onerror…) dans le contenu." },
+  { re: /(javascript|vbscript|data)\s*:/i, msg: "Pas de lien javascript:, vbscript: ou data: dans le contenu." },
+];
+
 /** Renvoie la liste des problèmes (vide si le fichier est valide). `assets` = chemins d'images existants sur la branche. */
 export function validateContent(path: string, text: string, assets: Set<string>): string[] {
   const problems: string[] = [];
+  if (path !== "admin/knowledge.md") for (const d of DANGEROUS) if (d.re.test(text)) problems.push(d.msg);
   if (path === "src/content/site.yaml") {
     try {
       const y = parseYaml(text) as any;
       if (!y?.main?.email || !Array.isArray(y.main.stats)) problems.push("site.yaml doit garder la clé main avec email et stats.");
+      for (const s of y?.main?.stats ?? []) if (s?.href !== undefined && !(typeof s.href === "string" && /^(\/|https?:\/\/|#)/.test(s.href))) problems.push(`Lien de chiffre clé invalide : ${s.href}`);
     } catch (e) {
       problems.push(`YAML invalide : ${(e as Error).message}`);
     }
     return problems;
   }
-  if (path === "admin/knowledge.md") return problems;
+  if (path === "admin/knowledge.md") {
+    if (/(\+?\d[\d .\/-]{7,}\d)/.test(text.replace(/\d{4}-\d{4}/g, ""))) problems.push("admin/knowledge.md est public : pas de numéro de téléphone.");
+    return problems;
+  }
 
   const fm = splitFrontmatter(text);
   if (typeof fm === "string") return [fm];

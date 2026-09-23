@@ -4,6 +4,10 @@ import { defineCollection } from "astro:content";
 import { glob, file } from "astro/loaders";
 import { z } from "astro/zod";
 
+// URL http(s) uniquement : z.string().url() seul accepterait javascript:…
+const httpUrl = () => z.string().url().refine((u) => /^https?:\/\//.test(u), "URL http(s) attendue");
+const siteHref = () => z.string().refine((u) => /^(\/|https?:\/\/|#)/.test(u), "Lien interne (/…) ou URL http(s) attendu");
+
 const pages = defineCollection({
   loader: glob({ base: "./src/content/pages", pattern: "**/*.md" }),
   schema: ({ image }) =>
@@ -25,7 +29,7 @@ const events = defineCollection({
       time: z.string().optional(),
       summary: z.string().optional(),
       cover: image().optional(),
-      link: z.string().url().optional(),
+      link: httpUrl().optional(),
     }),
 });
 
@@ -35,7 +39,7 @@ const facts = defineCollection({
     z.object({
       title: z.string().min(1),
       image: image().optional(),
-      source: z.object({ label: z.string(), url: z.string().url() }).optional(),
+      source: z.object({ label: z.string(), url: httpUrl() }).optional(),
       order: z.number().default(99),
     }),
 });
@@ -51,7 +55,7 @@ const partners = defineCollection({
     z.object({
       name: z.string().min(1),
       role: z.string().min(1),
-      url: z.string().url().optional(),
+      url: httpUrl().optional(),
       image: image().optional(),
       order: z.number().default(99),
     }),
@@ -62,14 +66,14 @@ const site = defineCollection({
   schema: z.object({
     tagline: z.string(),
     intro: z.array(z.string()),
-    stats: z.array(z.object({ value: z.string(), label: z.string(), href: z.string().optional() })),
+    stats: z.array(z.object({ value: z.string(), label: z.string(), href: siteHref().optional() })),
     email: z.string().email(),
     address: z.string(),
-    mapsUrl: z.string().url(),
-    newsletterUrl: z.string().url(),
-    facebookUrl: z.string().url(),
-    photosUrl: z.string().url(),
-    schoolBookingUrl: z.string().url(),
+    mapsUrl: httpUrl(),
+    newsletterUrl: httpUrl(),
+    facebookUrl: httpUrl(),
+    photosUrl: httpUrl(),
+    schoolBookingUrl: httpUrl(),
   }),
 });
 

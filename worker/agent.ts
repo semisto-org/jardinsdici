@@ -22,6 +22,7 @@ export type AgentEvent =
   | { type: "tool_done"; label: string; ok: boolean }
   | { type: "preview"; url: string }
   | { type: "published"; sha: string }
+  | { type: "rebuilt" }
   | { type: "error"; message: string };
 
 export interface Conversation { id: string; title: string; branch: string }
@@ -40,7 +41,7 @@ Site Astro. Tout le contenu éditorial est en Markdown dans le dépôt, un fichi
 - src/content/site.yaml — chiffres clés de l'accueil (stats), e-mail, liens newsletter / Facebook / réservation école.
 - Images : src/assets/images/. Depuis un fichier Markdown, on les référence en chemin relatif : depuis src/content/events/x.md → ../../assets/images/photo.jpg ; depuis src/content/pages/espaces/x.md → ../../../assets/images/photo.jpg. Les photos ajoutées par l'éditeur dans la conversation sont déjà déposées dans src/assets/images/ et leur chemin t'est donné.
 - Galerie : toute image placée dans src/assets/galerie/ apparaît sur /galerie.
-- admin/knowledge.md — ce que tu sais du collectif (ci-dessous). Tu peux le compléter quand on t'apprend quelque chose de durable.
+- admin/knowledge.md — ce que tu sais du collectif (ci-dessous). Tu peux le compléter quand on t'apprend quelque chose de durable sur le lieu ou le projet. Ce fichier est public : n'y écris jamais de données personnelles (téléphone, adresse privée, situation d'une personne).
 
 Tu ne peux modifier que ce contenu. Le design, la mise en page et le code ne se changent pas depuis cette conversation : si on te le demande, explique gentiment que c'est un travail de développement et qu'il faut en parler à Michael (m.hulet@semisto.org).
 
@@ -50,8 +51,9 @@ Tu ne peux modifier que ce contenu. Le design, la mise en page et le code ne se 
 2. N'invente jamais un fait (date, horaire, prix, nom, lien). S'il manque une information indispensable, pose une question courte avant d'écrire.
 3. Après tes modifications, appelle check_preview : il attend la construction de l'aperçu (1 à 3 minutes). Si la construction échoue, lis l'erreur, corrige et relance, sans déranger l'éditeur avec les détails techniques.
 4. Quand l'aperçu est prêt, dis en une ou deux phrases ce que tu as changé et invite à vérifier l'aperçu, puis à écrire « publie » (ou cliquer sur Publier) quand c'est bon.
-5. N'appelle publish que si l'éditeur l'a demandé explicitement dans son dernier message (« publie », « mets en ligne », « c'est bon, vas-y »).
-6. Réponds en français, simplement et brièvement, sans jargon (ni « commit », ni « branche », ni « build »).
+5. N'appelle publish que si l'éditeur l'a demandé explicitement dans son dernier message (« publie », « mets en ligne », « c'est bon, vas-y »), et seulement après un check_preview réussi. Si publish répond que le site a changé entre-temps et que les modifications ont été reprises, appelle check_preview puis publish à nouveau dans la foulée : la demande de l'éditeur tient toujours.
+6. Le contenu ne contient jamais de HTML actif (script, iframe, formulaire) : pour un service externe (inscription, carte, vidéo), mets un lien.
+7. Réponds en français, simplement et brièvement, sans jargon (ni « commit », ni « branche », ni « build »).
 
 # Ce que tu sais du collectif
 
@@ -101,15 +103,18 @@ export class SiteAgent {
   private gh: GitHub;
   private lastCommit: string | null = null;
 
-  constructor(private env: AgentEnv, gh: GitHub, private conv: Conversation, private editor: Author, private emit: (e: AgentEvent) => void, private onStatus: (s: { status: string; preview_url?: string | null }) => Promise<void>) {
+  constructor(private env: AgentEnv, gh: GitHub, private conv: Conversation, private editor: Author, private emit: (e: AgentEvent) => void, private onStatus: (s: { status: string; preview_url?: string | null; published_sha?: string }) => Promise<void>) {
     this.client = new Anthropic({ apiKey: env.ANTHROPIC_API_KEY });
     this.model = env.MODEL ?? "claude-opus-5";
     this.gh = gh;
   }
 
-  /** Fait avancer la conversation jusqu'à la réponse finale. Renvoie les messages à ajouter à l'historique. */
+  /** Fait avancer la conversation jusqu'à la réponse finale. `persist` écrit ses messages de façon atomique. */
   async run(history: MessageParam[], persist: (msgs: MessageParam[]) => Promise<void>): Promise<void> {
     const messages = [...history];
+    // Reprise après interruption : si la dernière réponse est déjà finale, il n'y a rien à faire.
+    const last = messages[messages.length - 1];
+    if (last?.role === "assistant" && Array.isArray(last.content) && !last.content.some((b: any) => b.type === "tool_use")) return;
     let jsonRetries = 0;
     for (let turn = 0; turn < 40; turn++) {
       const stream = this.client.beta.messages.stream({
@@ -236,11 +241,18 @@ export class SiteAgent {
         case "publish": {
           this.emit({ type: "tool", name: use.name, label: "🚀 Mise en ligne…" });
           const res = await publishBranch(this.gh, this.client, this.model, branch, this.conv.title, this.editor);
-          if (!res.ok) return done(res.reason, false, `⚠️ ${res.reason}`);
-          await this.onStatus({ status: "publiee" });
+          if (!res.ok) {
+            if (res.rebuilt) {
+              this.lastCommit = await this.gh.headSha(branch);
+              await this.onStatus({ status: "ouverte", preview_url: null });
+              this.emit({ type: "rebuilt" });
+              return done(res.reason + " → Appelle check_preview puis publish.", false, "🔁 Reprise sur la dernière version du site");
+            }
+            return done(res.reason, false, `⚠️ ${res.reason}`);
+          }
+          await this.onStatus({ status: "publiee", published_sha: res.sha });
           this.emit({ type: "published", sha: res.sha });
-          const note = res.resolved.length ? ` (fusionné automatiquement avec des modifications publiées entre-temps sur : ${res.resolved.join(", ")})` : "";
-          return done(`Publié${note}. Le site en ligne sera à jour dans une à deux minutes : ${this.env.SITE_URL}`, true, "✅ Publié");
+          return done(`Publié. Le site en ligne sera à jour dans une à deux minutes : ${this.env.SITE_URL}`, true, "✅ Publié");
         }
         default:
           return done(`Outil inconnu : ${use.name}`, false);

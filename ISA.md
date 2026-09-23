@@ -5,10 +5,10 @@ project: JardinsDici
 effort: deep
 effort_source: auto
 phase: execute
-progress: 13/30
+progress: 19/30
 mode: iterate
 started: 2026-09-23T21:00:00Z
-updated: 2026-09-23T21:17:00Z
+updated: 2026-09-23T21:50:00Z
 principal_stated_goal: "Ce serait un site internet qui tourne sur Astro et dans lequel on aurait une admin avec des utilisateurs. Et en fait, la question que je me pose, c'est est-ce que cet admin pourrait être uniquement un chatbot?"
 principal_stated_goal_source: prompt
 principal_stated_goal_signal: 2
@@ -51,6 +51,12 @@ Surprise euphorique : Inès fait sa première modification seule, sans mode d'em
 
 ## Dependencies
 
+- État au 2026-09-23 23:50 : Worker d'admin déployé et verrouillé (403/401 tant qu'Access n'est pas branché), D1 `jardinsdici-admin` migrée, CI verte (build + tests), déploiement CI sauté faute de jeton.
+- Jeton API Cloudflare pour la CI et la création d'Access (Workers Scripts, D1, Access Apps & Policies — Edit) : MISSING.
+- Zero Trust (Access) activé sur le compte Cloudflare de Michael : UNKNOWN.
+- Domaine de l'admin : résolu par la séparation — `jardinsdici-admin.birch.workers.dev`, à protéger entièrement par Access. jardinsdici.org (site public) est chez Cloudflare sur un autre compte : bascule à organiser avec son détenteur.
+- Secret GitHub CLOUDFLARE_ACCOUNT_ID : posé.
+
 - Compte Cloudflare (wrangler OAuth OK, scopes workers/d1/pages write — sondé 2026-09-23).
 - Clé API Anthropic : compte Anthropic de Semisto, clé dédiée créée par Michael — MISSING tant qu'elle n'est pas posée en secret.
 - GitHub : `gh` connecté en `mhulet`, org `supergenial-be` accessible — sondé 2026-09-23.
@@ -82,10 +88,10 @@ Livrer jardinsdici.org en Astro sur Cloudflare, contenu repris du site actuel da
 ### Admin conversationnelle
 - [ ] ISC-13: `GET /admin` sans jeton Access renvoie 302 vers Cloudflare Access (ou 403 si appel direct au Worker).
 - [ ] ISC-14: Un email hors liste blanche ne peut pas obtenir de session (politique Access lue en retour via API).
-- [ ] ISC-15: Le Worker rejette une requête `/api/admin/*` avec un JWT Access invalide ou absent (401).
+- [x] ISC-15: Le Worker rejette une requête `/api/admin/*` avec un JWT Access invalide ou absent (401).
 - [ ] ISC-16: La page `/admin` liste toutes les conversations de tous les utilisateurs avec auteur, date et statut.
-- [ ] ISC-17: Une conversation persiste dans D1 et se rouvre avec son historique complet.
-- [ ] ISC-18: Démarrer une conversation qui modifie du contenu crée une branche `chat/<id>` et y pousse un commit signé du nom de l'utilisateur.
+- [x] ISC-17: Une conversation persiste dans D1 et se rouvre avec son historique complet.
+- [x] ISC-18: Démarrer une conversation qui modifie du contenu crée une branche `chat/<id>` et y pousse un commit signé du nom de l'utilisateur.
 - [ ] ISC-19: Un lien d'aperçu de la branche s'affiche dans la conversation une fois le build de prévisualisation réussi.
 - [ ] ISC-20: « publie » fusionne la branche dans `main` et le statut passe à « en ligne » quand le déploiement de production a réussi.
 - [ ] ISC-21: Un build d'aperçu en échec renvoie l'erreur à l'agent, qui corrige et relance sans intervention humaine.
@@ -95,9 +101,9 @@ Livrer jardinsdici.org en Astro sur Cloudflare, contenu repris du site actuel da
 - [ ] ISC-25: Scénario de bout en bout validé dans un vrai navigateur : « ajoute un événement » → aperçu → « publie » → visible en production.
 
 ### Anti-claims
-- [ ] ISC-26: Anti : l'agent ne peut écrire en dehors de `src/content/**` et `src/assets/**` (outil d'écriture refuse tout autre chemin — probe : test unitaire du garde).
-- [ ] ISC-27: Anti : aucun push direct sur `main` par l'agent autrement que par la fusion déclenchée par « publie ».
-- [ ] ISC-28: Anti : la clé API Anthropic et le token GitHub n'apparaissent ni dans le repo ni dans le bundle client (grep `dist/` et historique git).
+- [x] ISC-26: Anti : l'agent ne peut écrire en dehors de `src/content/**` et `src/assets/**` (outil d'écriture refuse tout autre chemin — probe : test unitaire du garde).
+- [x] ISC-27: Anti : aucun push direct sur `main` par l'agent autrement que par la fusion déclenchée par « publie ».
+- [x] ISC-28: Anti : la clé API Anthropic et le token GitHub n'apparaissent ni dans le repo ni dans le bundle client (grep `dist/` et historique git).
 - [x] ISC-29: Anti : aucune page du site public ne charge de script tiers de suivi.
 - [x] ISC-30: Anti : le DNS de jardinsdici.org n'est pas modifié sans feu vert de Michael.
 
@@ -155,15 +161,26 @@ Livrer jardinsdici.org en Astro sur Cloudflare, contenu repris du site actuel da
 - 2026-09-23: Publication en deux temps (aperçu puis « publie ») — Michael.
 - 2026-09-23: Arborescence d'Inès en 13 sections — Michael. Constat : le site actuel a déjà intégré une partie des textes d'Inès (mise à jour Super du 2026-09-21).
 - 2026-09-23: Le site actuel tourne sur Super (Notion), pas WordPress — contenu extrait par scraping HTML (`.notion-root` → Markdown).
+- 2026-09-24: Relecture indépendante (agent pr-review, contexte neuf) du Worker d'admin. Aucun contournement d'auth trouvé. Adopté : (1) XSS stockée du contenu sur la même origine que /admin → admin déplacée sur un Worker séparé `jardinsdici-admin` (site public = fichiers statiques sans code ni secret) + refus du HTML actif et des liens javascript: (content.ts, schémas Zod) ; (2) fusion LLM non validée → blocs de code retirés, validateContent, et nouvel aperçu obligatoire après reconstruction ; (3) publication sans build → exige le run `success` de la tête de branche, statut `apercu` et verrou ; (4) course sur main → reconstruction épinglée sur le mainSha lu ; (5) renommages et créations concurrentes gérés ; (6) agent lié à la connexion HTTP → Durable Object par conversation, exécution par alarme, écritures atomiques (D1 batch), réparation des tool_use orphelins ; (7) verrou busy non atomique → UPDATE conditionnel ; (8-9) photos en base64 dans D1 et sink XSS → seuls les chemins sont stockés, validés par regex, images servies par l'admin et rechargées depuis GitHub ; (10) suivi du déploiement après publication dans l'UI ; mineurs : rechargement JWKS sur kid inconnu, e-mail des commits = bonjour@jardinsdici.org (repo public), interdiction des numéros de téléphone dans knowledge.md.
+- 2026-09-24: Conséquence de la séparation : Access peut protéger tout le domaine workers.dev du Worker d'admin (il ne sert que l'admin) → plus besoin d'un domaine personnalisé pour l'admin ; la décision de domaine ne concerne plus que le site public (bascule jardinsdici.org).
 - 2026-09-23: Agent limité au contenu — un agent qui peut toucher au code finira par casser le site ; le design reste un travail de dev.
 
 ## Changelog
+
+- 2026-09-23 · conjectured: Access pourrait protéger /admin directement sur *.workers.dev · refuted by: l'option Access des workers.dev protège tout le domaine (site public compris), et une application Access par chemin exige une zone du compte · learned: il faut un domaine personnalisé dans le compte de Michael · criterion now: ISC-13/14 attendent le domaine final ou un sous-domaine provisoire.
 
 - 2026-09-23 · conjectured: les dates des événements seraient dans les données de la collection Notion · refuted by: le calendrier Super se charge côté client, aucune date dans le HTML · learned: les dates se lisent dans le texte et sur les affiches (lues visuellement) · criterion now: ISC-4 exige une date typée par fichier, remplie à la main pour les 11 événements.
 - 2026-09-23 · conjectured: les images Notion du « Le saviez-vous » se téléchargent depuis le site · refuted by: HTTP 419, les URL signées ont expiré le 2026-09-22 · learned: repli sur les images du PDF d'Inès (basse définition) · criterion now: ISC-5 tenu ; remplacer ces 4 images par de meilleures versions reste ouvert.
 - 2026-09-23 · conjectured: `auto-trailing-slash` suffit sur Workers Static Assets · refuted by: /faq et /ressources en 404, autres pages en 307 · learned: `drop-trailing-slash` sert /page directement depuis page/index.html · criterion now: ISC-3 vérifié sur l'URL sans slash final.
 
 ## Verification
+
+- ISC-15 : en production, requête avec un faux en-tête Cf-Access-Jwt-Assertion sur /api/admin/conversations → 401 ; /api/admin/me sans jeton → 401 ; /admin → 403.
+- ISC-17 : en local (wrangler dev + D1 locale), conversation créée, message persisté, rouverte avec son historique (photo comprise) dans agent-browser.
+- ISC-18 : upload d'une photo depuis l'UI → branche `chat/fab0956e35` créée sur GitHub, commit « Ajout de la photo test-photo-2b2c90.jpg » signé « Michael Hulet <m.hulet@semisto.org> » ; « Abandonner » → branche supprimée, statut « abandonnee ».
+- ISC-26 : `bun test worker/` → 9 pass (chemins interdits : src/pages, layouts, styles, worker, wrangler, package.json, workflows, _redirects, traversée « .. »), y compris la validation sans faux positif de tout le contenu existant. Même suite verte en CI (run 35924152542).
+- ISC-27 : l'agent n'écrit que via writeFile/deleteFile sur `conv.branch` (chat/<id>) ; main n'est modifiée que par publishBranch (fusion GitHub).
+- ISC-28 : recherche de motifs de clés (Anthropic, GitHub) sur le repo et dist/ → seule la ligne de sonde de l'ISA ; .dev.vars ignoré par git.
 
 - ISC-1 : `bun run build` → « 35 page(s) built », aucune ligne warn/error.
 - ISC-2 : 13 sections présentes : / , /projet, /espaces (+6 sous-pages), /ecole, /agenda, /infos-pratiques, /benevolat, /faq, /ressources, /galerie, réseaux sociaux (pied de page), /le-saviez-vous, /projet/odd.

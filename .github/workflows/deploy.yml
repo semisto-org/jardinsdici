@@ -1,5 +1,5 @@
 # Construit le site à chaque modification.
-# main → mise en ligne. chat/* (une branche par conversation de l'admin) → aperçu sur une URL dédiée.
+# main → mise en ligne du site public (fichiers statiques) et de l'admin (Worker séparé). chat/* (une branche par conversation de l'admin) → aperçu sur une URL dédiée.
 name: Construire et déployer
 
 on:
@@ -31,8 +31,9 @@ jobs:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
         run: |
-          bunx wrangler d1 migrations apply jardinsdici-admin --remote
           bunx wrangler deploy
+          bunx wrangler d1 migrations apply jardinsdici-admin --remote -c wrangler.admin.jsonc
+          bunx wrangler deploy -c wrangler.admin.jsonc
 
       - name: Publier l'aperçu de la conversation
         if: startsWith(github.ref, 'refs/heads/chat/') && env.HAS_CF_TOKEN == 'true'

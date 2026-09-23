@@ -98,36 +98,48 @@
 </main>
 <script>
 const $ = (id) => document.getElementById(id);
-const state = { me: null, convs: [], current: null, conv: null, busy: false, pending: [] };
+const state = { me: null, convs: [], current: null, conv: null, busy: false, pending: [], polling: false };
 const STATUS = { ouverte: "En cours", apercu: "Aperçu prêt", publiee: "En ligne", abandonnee: "Abandonnée" };
+const NAMES = {};
 const api = async (path, opts = {}) => {
   const res = await fetch(`/api/admin/${path}`, { ...opts, headers: { "X-Admin-Request": "1", ...(opts.body && !(opts.body instanceof Blob) ? { "Content-Type": "application/json" } : {}), ...opts.headers } });
   if (!res.ok) throw new Error((await res.json().catch(() => ({}))).error || `Erreur ${res.status}`);
   return res.json();
 };
-const esc = (s) => s.replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 const rich = (s) => esc(s).replace(/\*\*([^*]+)\*\*/g, "<b>$1</b>").replace(/\[([^\]]+)\]\((https?:\/\/[^)\s]+)\)/g, '<a href="$2" target="_blank" rel="noopener">$1</a>').replace(/(^|[\s(])(https?:\/\/[^\s)<]+)/g, '$1<a href="$2" target="_blank" rel="noopener">$2</a>');
-const NAMES = {};
-const nameOf = (email) => email ? NAMES[email] || email.split("@")[0].split(/[._-]/).map((w) => w[0].toUpperCase() + w.slice(1)).join(" ") : "";
+const nameOf = (email) => email ? NAMES[email] || email.split("@")[0] : "";
 const ago = (t) => { const m = Math.round((Date.now() - t) / 60000); return m < 1 ? "à l’instant" : m < 60 ? `il y a ${m} min` : m < 1440 ? `il y a ${Math.round(m / 60)} h` : new Date(t).toLocaleDateString("fr-BE", { day: "numeric", month: "short" }); };
+const PHOTO = /\[Photo jointe, déjà ajoutée au site : (src\/assets\/images\/[a-z0-9-]+\.jpg)\]/g;
 
 async function loadList() {
   state.convs = await api("conversations");
-  const open = state.convs.filter((c) => c.status === "ouverte" || c.status === "apercu");
-  const done = state.convs.filter((c) => !(c.status === "ouverte" || c.status === "apercu"));
-  const item = (c) => `<button class="conv ${c.id === state.current ? "active" : ""}" data-id="${c.id}"><b>${esc(c.title)}</b><small>${esc(nameOf(c.author))} · ${ago(c.updated_at)}</small>${c.busy ? '<span class="badge b-busy">en cours…</span>' : `<span class="badge b-${c.status}">${STATUS[c.status]}</span>`}</button>`;
+  const isOpen = (c) => c.status === "ouverte" || c.status === "apercu";
+  const item = (c) => `<button class="conv ${c.id === state.current ? "active" : ""}" data-id="${esc(c.id)}"><b>${esc(c.title)}</b><small>${esc(nameOf(c.author))} · ${ago(c.updated_at)}</small>${c.busy ? '<span class="badge b-busy">en cours…</span>' : `<span class="badge b-${esc(c.status)}">${STATUS[c.status] || ""}</span>`}</button>`;
+  const open = state.convs.filter(isOpen), done = state.convs.filter((c) => !isOpen(c));
   $("list").innerHTML = (open.length ? `<div class="group">En cours</div>${open.map(item).join("")}` : "") + (done.length ? `<div class="group">Terminées</div>${done.map(item).join("")}` : "") || '<p class="group">Aucune conversation pour l’instant.</p>';
   for (const b of $("list").querySelectorAll(".conv")) b.onclick = () => { document.body.classList.remove("side"); openConv(b.dataset.id); };
 }
 
 function blockHtml(m, b) {
-  if (b.type === "text") {
-    let t = b.text;
-    if (m.role === "user") t = t.replace(/^\[[^\]\n]+\]\n?/, "").replace(/\n?\[Photo jointe, déjà ajoutée au site : [^\]]+\]/g, "");
-    return t.trim() ? rich(t) : "";
+  if (b.type !== "text") return "";
+  if (m.role === "user") {
+    const photos = [...b.text.matchAll(PHOTO)].map((x) => `<img src="/api/admin/conversations/${encodeURIComponent(state.current)}/image?path=${encodeURIComponent(x[1])}" alt="Photo jointe" loading="lazy" />`).join("");
+    const text = b.text.replace(/^\[[^\]\n]+\]\n?/, "").replace(PHOTO, "").trim();
+    return (text ? rich(text) : "") + photos;
   }
-  if (b.type === "image" && b.source?.data) return `<img src="data:image/jpeg;base64,${b.source.data}" alt="Photo jointe" />`;
-  return "";
+  return b.text.trim() ? rich(b.text) : "";
+}
+
+function actionsHtml(conv) {
+  if (state.busy) return '<span class="badge b-busy">L’assistant travaille…</span>';
+  return [
+    conv.preview_url ? `<a class="btn ghost" href="${esc(conv.preview_url)}" target="_blank" rel="noopener">Voir l’aperçu ↗</a>` : "",
+    conv.status === "apercu" ? '<button class="btn go" data-publish>Publier</button>' : "",
+    conv.status === "publiee" ? `<span class="badge b-publiee" id="deploy">En ligne</span>` : "",
+    conv.status === "ouverte" || conv.status === "apercu" ? '<button class="btn ghost" data-archive title="Abandonner ces modifications">Abandonner</button>' : "",
+  ].join(" ");
 }
 
 function render() {
@@ -138,41 +150,40 @@ function render() {
     $("actions").innerHTML = "";
     inner.innerHTML = `<div class="empty"><h2>Bonjour ${esc(state.me?.name || "")} 🌱</h2><p>Dites simplement ce que vous voulez changer sur le site. L’assistant s’occupe du reste, vous montre un aperçu, et publie quand vous le lui demandez.</p><div class="ideas">${["Ajoute un événement à l’agenda", "Corrige un texte sur une page", "Remplace une photo", "Mets à jour les chiffres de l’accueil"].map((i) => `<button type="button">${i}</button>`).join("")}</div></div>`;
     for (const b of inner.querySelectorAll(".ideas button")) b.onclick = () => { $("text").value = b.textContent + " : "; $("text").focus(); };
+    setComposer(true);
     return;
   }
-  $("title").textContent = c.conversation.title;
   const conv = c.conversation;
-  $("actions").innerHTML = [
-    conv.preview_url ? `<a class="btn ghost" href="${esc(conv.preview_url)}" target="_blank" rel="noopener">Voir l’aperçu ↗</a>` : "",
-    conv.status === "apercu" ? `<button class="btn go" id="publish">Publier</button>` : "",
-    conv.status === "publiee" ? `<span class="badge b-publiee">En ligne</span>` : "",
-    conv.status === "ouverte" || conv.status === "apercu" ? `<button class="btn ghost" id="archive" title="Abandonner ces modifications">Abandonner</button>` : "",
-  ].join(" ");
-  if ($("publish")) $("publish").onclick = publish;
-  if ($("archive")) $("archive").onclick = archive;
+  $("title").textContent = conv.title;
+  $("actions").innerHTML = actionsHtml(conv);
   let html = "";
   for (const m of c.messages) {
     const parts = m.content.map((b) => blockHtml(m, b)).filter(Boolean).join("");
     if (parts) html += `<div class="msg ${m.role}">${m.role === "user" && m.author ? `<div class="who">${esc(nameOf(m.author))}</div>` : ""}${parts}</div>`;
-    for (const b of m.content) {
-      if (b.type === "tool_use" && (b.input?.summary || b.name === "publish")) html += `<div class="chip">${esc(b.name === "publish" ? "🚀 Mise en ligne" : "✏️ " + b.input.summary)}</div>`;
-    }
+    for (const b of m.content) if (b.type === "tool_use" && (b.input?.summary || b.name === "publish")) html += `<div class="chip">${esc(b.name === "publish" ? "🚀 Mise en ligne" : "✏️ " + b.input.summary)}</div>`;
   }
-  if (conv.status === "apercu" && conv.preview_url) html += `<div class="preview"><span>👀 Les modifications sont prêtes à être vérifiées.</span><span><a class="btn ghost" href="${esc(conv.preview_url)}" target="_blank" rel="noopener">Ouvrir l’aperçu</a> <button class="btn go" data-publish>Publier</button></span></div>`;
-  inner.innerHTML = html || `<div class="empty"><p>Écrivez votre demande ci-dessous.</p></div>`;
-  const pb = inner.querySelector("[data-publish]"); if (pb) pb.onclick = publish;
-  const done = conv.status === "publiee" || conv.status === "abandonnee";
-  $("text").disabled = done || state.busy; $("send").disabled = done || state.busy; $("photoBtn").disabled = done || state.busy;
-  $("text").placeholder = done ? "Conversation terminée : ouvrez-en une nouvelle." : "Que voulez-vous changer sur le site ?";
+  if (!state.busy && conv.status === "apercu" && conv.preview_url) html += `<div class="preview"><span>👀 Les modifications sont prêtes à être vérifiées.</span><span><a class="btn ghost" href="${esc(conv.preview_url)}" target="_blank" rel="noopener">Ouvrir l’aperçu</a> <button class="btn go" data-publish>Publier</button></span></div>`;
+  inner.innerHTML = html || '<div class="empty"><p>Écrivez votre demande ci-dessous.</p></div>';
+  for (const b of document.querySelectorAll("[data-publish]")) b.onclick = publish;
+  for (const b of document.querySelectorAll("[data-archive]")) b.onclick = archive;
+  setComposer(conv.status === "ouverte" || conv.status === "apercu");
   $("thread").scrollTop = $("thread").scrollHeight;
+}
+
+function setComposer(open) {
+  const off = !open || state.busy;
+  $("text").disabled = off; $("send").disabled = off; $("photoBtn").disabled = off;
+  $("text").placeholder = !open ? "Conversation terminée : ouvrez-en une nouvelle." : state.busy ? "L’assistant travaille…" : "Que voulez-vous changer sur le site ?";
 }
 
 async function openConv(id) {
   state.current = id;
-  history.replaceState(null, "", `/admin#${id}`);
+  history.replaceState(null, "", `#${id}`);
   state.conv = await api(`conversations/${id}`);
   state.busy = !!state.conv.conversation.busy;
   render(); loadList();
+  if (state.busy) follow(id);
+  if (state.conv.conversation.status === "publiee") followDeploy(id);
 }
 
 async function ensureConv() {
@@ -180,6 +191,41 @@ async function ensureConv() {
   const { id } = await api("conversations", { method: "POST", body: JSON.stringify({}) });
   await openConv(id);
   return id;
+}
+
+// Suit l’assistant pendant qu’il travaille (il continue même si on ferme l’onglet).
+async function follow(id) {
+  if (state.polling) return;
+  state.polling = true;
+  const live = document.createElement("div"); live.className = "msg assistant"; live.innerHTML = '<span class="typing">L’assistant réfléchit…</span>';
+  $("inner").append(live);
+  const chips = document.createElement("div"); chips.style.display = "contents"; live.before(chips);
+  try {
+    while (state.current === id) {
+      const r = await api(`conversations/${id}/live`);
+      const l = r.live;
+      chips.innerHTML = l.events.filter((e) => e.type === "tool" || (e.type === "tool_done" && !e.ok) || e.type === "error").map((e) => `<div class="chip ${e.type !== "tool" ? "err" : ""}">${esc(e.label || e.message)}</div>`).join("");
+      if (l.text) live.innerHTML = rich(l.text);
+      $("thread").scrollTop = $("thread").scrollHeight;
+      if (!l.running && !r.conversation.busy) break;
+      await sleep(1200);
+    }
+  } catch (err) { alertInline(err.message); }
+  state.polling = false;
+  if (state.current === id) { state.busy = false; await openConv(id); }
+}
+
+// Après publication : suit la mise en ligne jusqu’au bout.
+async function followDeploy(id) {
+  for (let i = 0; i < 60 && state.current === id; i++) {
+    const r = await api(`conversations/${id}/status`).catch(() => null);
+    const badge = $("deploy");
+    if (!r || !badge) return;
+    if (!r.deploy || r.deploy.status !== "completed") badge.textContent = "Mise en ligne en cours…";
+    else if (r.deploy.conclusion === "success") { badge.innerHTML = `En ligne ✅ <a href="${esc(state.me.site)}" target="_blank" rel="noopener" style="color:#fff">voir le site</a>`; return; }
+    else { badge.className = "badge b-busy"; badge.textContent = "⚠️ La mise en ligne a échoué : prévenez Michael"; return; }
+    await sleep(5000);
+  }
 }
 
 function resize(file, max, quality) {
@@ -197,19 +243,16 @@ function resize(file, max, quality) {
     img.src = URL.createObjectURL(file);
   });
 }
-const b64 = (blob) => new Promise((r) => { const fr = new FileReader(); fr.onload = () => r(String(fr.result).split(",")[1]); fr.readAsDataURL(blob); });
 
 $("photoBtn").onclick = () => $("photo").click();
 $("photo").onchange = async (e) => {
-  const files = [...e.target.files]; e.target.value = "";
+  const files = [...e.target.files].slice(0, 6 - state.pending.length); e.target.value = "";
   try {
     const id = await ensureConv();
     for (const f of files) {
       const tag = document.createElement("span"); tag.textContent = `⏳ ${f.name}`; $("pending").append(tag);
-      const big = await resize(f, 2000, 0.85);
-      const { path } = await api(`conversations/${id}/upload?name=${encodeURIComponent(f.name)}`, { method: "POST", body: big, headers: { "Content-Type": "image/jpeg" } });
-      const data = await b64(await resize(f, 1024, 0.8));
-      state.pending.push({ path, data });
+      const { path } = await api(`conversations/${id}/upload?name=${encodeURIComponent(f.name)}`, { method: "POST", body: await resize(f, 2000, 0.85), headers: { "Content-Type": "image/jpeg" } });
+      state.pending.push(path);
       tag.textContent = `📷 ${f.name}`;
     }
   } catch (err) { alertInline(err.message); }
@@ -227,42 +270,19 @@ $("composer").onsubmit = async (e) => {
   e.preventDefault();
   const text = $("text").value.trim();
   if ((!text && !state.pending.length) || state.busy) return;
-  const id = await ensureConv();
-  const images = state.pending; state.pending = []; $("pending").innerHTML = "";
-  $("text").value = ""; $("text").style.height = "auto";
-  state.conv.messages.push({ role: "user", author: state.me.email, content: [{ type: "text", text: "[moi]\n" + text }, ...images.map((i) => ({ type: "image", source: { data: i.data } }))] });
-  state.busy = true; render();
-  const live = document.createElement("div"); live.className = "msg assistant"; live.innerHTML = '<span class="typing">L’assistant réfléchit…</span>';
-  $("inner").append(live);
-  let buffer = "", textSoFar = "";
   try {
-    const res = await fetch(`/api/admin/conversations/${id}/messages`, { method: "POST", headers: { "Content-Type": "application/json", "X-Admin-Request": "1" }, body: JSON.stringify({ text, images }) });
-    if (!res.ok) throw new Error((await res.json().catch(() => ({}))).error || `Erreur ${res.status}`);
-    const reader = res.body.getReader(); const dec = new TextDecoder();
-    while (true) {
-      const { value, done } = await reader.read(); if (done) break;
-      buffer += dec.decode(value, { stream: true });
-      let i;
-      while ((i = buffer.indexOf("\n\n")) >= 0) {
-        const line = buffer.slice(0, i); buffer = buffer.slice(i + 2);
-        if (!line.startsWith("data: ")) continue;
-        const ev = JSON.parse(line.slice(6));
-        if (ev.type === "text") { textSoFar += ev.delta; live.innerHTML = rich(textSoFar); }
-        else if (ev.type === "tool") { const c = document.createElement("div"); c.className = "chip"; c.textContent = ev.label; live.before(c); }
-        else if (ev.type === "tool_done" && !ev.ok) { const c = document.createElement("div"); c.className = "chip err"; c.textContent = ev.label; live.before(c); }
-        else if (ev.type === "error") alertInline(ev.message);
-        $("thread").scrollTop = $("thread").scrollHeight;
-      }
-    }
+    const id = await ensureConv();
+    const photos = state.pending;
+    await api(`conversations/${id}/messages`, { method: "POST", body: JSON.stringify({ text, photos }) });
+    state.pending = []; $("pending").innerHTML = ""; $("text").value = ""; $("text").style.height = "auto";
+    await openConv(id);
   } catch (err) { alertInline(err.message); }
-  state.busy = false;
-  await openConv(id);
 };
 
 async function publish() {
   const id = state.current; if (!id) return;
-  for (const b of document.querySelectorAll("#publish,[data-publish]")) { b.disabled = true; b.textContent = "Mise en ligne…"; }
-  try { await api(`conversations/${id}/publish`, { method: "POST" }); } catch (err) { alertInline(err.message); }
+  for (const b of document.querySelectorAll("[data-publish]")) { b.disabled = true; b.textContent = "Mise en ligne…"; }
+  try { await api(`conversations/${id}/publish`, { method: "POST" }); } catch (err) { /* la raison est ajoutée à la conversation */ }
   await openConv(id);
 }
 async function archive() {
@@ -271,7 +291,7 @@ async function archive() {
   await openConv(state.current);
 }
 
-$("new").onclick = () => { state.current = null; state.conv = null; history.replaceState(null, "", "/admin"); document.body.classList.remove("side"); render(); loadList(); $("text").disabled = false; $("send").disabled = false; $("photoBtn").disabled = false; $("text").focus(); };
+$("new").onclick = () => { state.current = null; state.conv = null; state.pending = []; $("pending").innerHTML = ""; history.replaceState(null, "", location.pathname); document.body.classList.remove("side"); render(); loadList(); $("text").focus(); };
 $("menu").onclick = () => document.body.classList.toggle("side");
 
 (async () => {
@@ -281,7 +301,7 @@ $("menu").onclick = () => document.body.classList.toggle("side");
   await loadList();
   const id = location.hash.slice(1);
   if (id) await openConv(id); else render();
-  setInterval(() => { if (!state.busy) loadList(); }, 15000);
+  setInterval(() => { if (!state.polling) loadList().catch(() => {}); }, 15000);
 })().catch((e) => alertInline(e.message));
 </script>
 </body>

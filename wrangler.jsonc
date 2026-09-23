@@ -1,31 +1,13 @@
 {
+  // Site public : fichiers statiques uniquement, aucun code ni secret.
   "$schema": "node_modules/wrangler/config-schema.json",
   "name": "jardinsdici",
-  "main": "worker/index.ts",
   "compatibility_date": "2026-09-01",
-  "compatibility_flags": ["nodejs_compat"],
   "workers_dev": true,
   "preview_urls": true,
   "assets": {
     "directory": "./dist",
-    "binding": "ASSETS",
     "not_found_handling": "404-page",
-    "html_handling": "drop-trailing-slash",
-    // Seules l'admin et son API passent par le Worker ; le site public est servi directement.
-    "run_worker_first": ["/admin", "/admin/*", "/api/admin/*"]
-  },
-  "rules": [{ "type": "Text", "globs": ["**/*.html", "**/*.md"], "fallthrough": true }],
-  "d1_databases": [
-    { "binding": "DB", "database_name": "jardinsdici-admin", "database_id": "76c06980-a010-434f-8cfd-a59b946a522e", "migrations_dir": "migrations" }
-  ],
-  "vars": {
-    "GITHUB_REPO": "semisto-org/jardinsdici",
-    "SITE_URL": "https://jardinsdici.birch.workers.dev",
-    "PREVIEW_URL_TEMPLATE": "https://{alias}-jardinsdici.birch.workers.dev",
-    "ADMIN_EMAILS": "m.hulet@semisto.org,ines.riou@student.unamur.be",
-    "ADMIN_NAMES": "m.hulet@semisto.org=Michael Hulet,ines.riou@student.unamur.be=Inès Riou",
-    "MODEL": "claude-opus-5"
-    // ACCESS_TEAM_DOMAIN et ACCESS_AUD : ajoutés une fois l'application Cloudflare Access créée.
-    // Secrets (wrangler secret put) : ANTHROPIC_API_KEY, GITHUB_TOKEN.
+    "html_handling": "drop-trailing-slash"
   }
 }
