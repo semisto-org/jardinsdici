@@ -33,12 +33,12 @@ export class ConversationRunner extends DurableObject<Env> {
     if (!conv) { await this.ctx.storage.delete("job"); return; }
     this.state.running = true;
     const editor = editorFromEmail(job.editorEmail, env.ADMIN_NAMES);
-    const gh = new GitHub(env);
     const emit = (e: AgentEvent) => {
       if (e.type === "text") this.state.text += e.delta;
       else this.state.events.push(e);
     };
     try {
+      const gh = new GitHub(env);
       const history = await withImages(gh, conv.branch, await loadHistory(env, job.convId));
       const agent = new SiteAgent(env, gh, { id: job.convId, title: conv.title, branch: conv.branch }, commitAuthor(env, editor), emit,
         (s) => touch(env, job.convId, s));
