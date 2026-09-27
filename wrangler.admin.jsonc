@@ -20,8 +20,10 @@
     "ADMIN_EMAILS": "m.hulet@semisto.org,ines.riou@student.unamur.be",
     "ADMIN_NAMES": "m.hulet@semisto.org=Michael Hulet,ines.riou@student.unamur.be=Inès Riou",
     "COMMIT_EMAIL": "bonjour@jardinsdici.org",
-    "MODEL": "claude-opus-5"
-    // ACCESS_TEAM_DOMAIN et ACCESS_AUD : ajoutés une fois l'application Cloudflare Access créée.
+    "MODEL": "claude-opus-5",
+    // Cloudflare Access (application « jardinsdici-admin », tout le trafic, e-mails autorisés + code par e-mail)
+    "ACCESS_TEAM_DOMAIN": "supergenial.cloudflareaccess.com",
+    "ACCESS_AUD": "1c80d5f2d2d7a0ad6dd4c2b1e850f3fb9b610fc3d7c91d72233950958441a9a1"
     // Secrets (wrangler secret put -c wrangler.admin.jsonc) : ANTHROPIC_API_KEY, GITHUB_TOKEN.
   }
 }
