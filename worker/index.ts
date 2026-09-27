@@ -48,7 +48,9 @@ export default {
 
 async function api(req: Request, url: URL, env: Env, editor: Editor): Promise<Response> {
   const parts = url.pathname.replace(/^\/api\/admin\/?/, "").split("/").filter(Boolean);
-  const gh = new GitHub(env);
+  // Créé à la demande : sans jeton GitHub, l'admin reste consultable et l'erreur est explicite.
+  let ghInstance: GitHub | null = null;
+  const gh = () => (ghInstance ??= new GitHub(env));
 
   if (parts[0] === "me") {
     const names = Object.fromEntries(env.ADMIN_EMAILS.split(",").map((e) => e.trim()).filter(Boolean).map((e) => [e, editorFromEmail(e, env.ADMIN_NAMES).name]));
@@ -86,14 +88,14 @@ async function api(req: Request, url: URL, env: Env, editor: Editor): Promise<Re
   }
 
   if (action === "status" && req.method === "GET") {
-    const deploy = conv.status === "publiee" && conv.published_sha ? await gh.latestRun("main", conv.published_sha) : null;
+    const deploy = conv.status === "publiee" && conv.published_sha ? await gh().latestRun("main", conv.published_sha) : null;
     return json({ conversation: conv, deploy });
   }
 
   if (action === "image" && req.method === "GET") {
     const path = url.searchParams.get("path") ?? "";
     if (!PHOTO_PATH.test(path)) return json({ error: "Chemin invalide" }, 400);
-    const bytes = (await gh.readRaw(conv.branch, path).catch(() => null)) ?? (await gh.readRaw("main", path));
+    const bytes = (await gh().readRaw(conv.branch, path).catch(() => null)) ?? (await gh().readRaw("main", path));
     if (!bytes) return json({ error: "Image introuvable" }, 404);
     return new Response(bytes, { headers: { "Content-Type": "image/jpeg", "Cache-Control": "private, max-age=86400" } });
   }
@@ -107,8 +109,8 @@ async function api(req: Request, url: URL, env: Env, editor: Editor): Promise<Re
     if (bytes.length > 4_000_000) return json({ error: "Image trop lourde (4 Mo max après réduction)." }, 413);
     if (!(bytes[0] === 0xff && bytes[1] === 0xd8)) return json({ error: "Seules les images JPEG sont acceptées." }, 415);
     const path = `src/assets/images/${name}-${crypto.randomUUID().slice(0, 6)}.jpg`;
-    await gh.ensureBranch(conv.branch);
-    await gh.writeFile(conv.branch, path, bytes, `Ajout de la photo ${path.split("/").pop()}`, commitAuthor(env, editor));
+    await gh().ensureBranch(conv.branch);
+    await gh().writeFile(conv.branch, path, bytes, `Ajout de la photo ${path.split("/").pop()}`, commitAuthor(env, editor));
     await touch(env, id, { status: "ouverte", preview_url: null });
     return json({ path });
   }
@@ -144,7 +146,7 @@ async function api(req: Request, url: URL, env: Env, editor: Editor): Promise<Re
     if (!(await lock(env, id))) return json({ error: "L'assistant travaille encore sur cette conversation." }, 409);
     try {
       const client = new Anthropic({ apiKey: env.ANTHROPIC_API_KEY });
-      const res = await publishBranch(gh, client, env.MODEL ?? "claude-opus-5", conv.branch, conv.title, commitAuthor(env, editor));
+      const res = await publishBranch(gh(), client, env.MODEL ?? "claude-opus-5", conv.branch, conv.title, commitAuthor(env, editor));
       if (!res.ok) {
         if (res.rebuilt) await touch(env, id, { status: "ouverte", preview_url: null });
         await addMessages(env, id, [
@@ -167,7 +169,7 @@ async function api(req: Request, url: URL, env: Env, editor: Editor): Promise<Re
   if (action === "archive" && req.method === "POST") {
     if (!active) return json({ error: "Cette conversation est déjà terminée." }, 409);
     if (!(await lock(env, id))) return json({ error: "L'assistant travaille encore sur cette conversation." }, 409);
-    await gh.deleteBranch(conv.branch);
+    await gh().deleteBranch(conv.branch);
     await touch(env, id, { status: "abandonnee", busy: 0 });
     return json({ ok: true });
   }

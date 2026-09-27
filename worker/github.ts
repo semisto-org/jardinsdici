@@ -7,13 +7,15 @@ export interface GitHubEnv {
 export interface Author { name: string; email: string }
 
 export class GitHub {
-  constructor(private env: GitHubEnv) {}
+  constructor(private env: GitHubEnv) {
+    if (!env.GITHUB_TOKEN?.trim()) throw new Error("Le jeton GitHub de l'admin n'est pas configuré (secret GITHUB_TOKEN) : l'assistant ne peut ni lire ni modifier le site.");
+  }
 
   async api<T = any>(path: string, init: RequestInit = {}, okStatuses: number[] = []): Promise<{ status: number; data: T }> {
     const res = await fetch(`https://api.github.com/repos/${this.env.GITHUB_REPO}${path}`, {
       ...init,
       headers: {
-        Authorization: `Bearer ${this.env.GITHUB_TOKEN}`,
+        Authorization: `Bearer ${this.env.GITHUB_TOKEN.trim()}`,
         Accept: "application/vnd.github+json",
         "X-GitHub-Api-Version": "2022-11-28",
         "User-Agent": "jardinsdici-admin",
@@ -63,7 +65,7 @@ export class GitHub {
   /** Octets bruts d'un fichier (images), quelle que soit sa taille. */
   async readRaw(ref: string, path: string): Promise<Uint8Array | null> {
     const res = await fetch(`https://api.github.com/repos/${this.env.GITHUB_REPO}/contents/${encodePath(path)}?ref=${encodeURIComponent(ref)}`, {
-      headers: { Authorization: `Bearer ${this.env.GITHUB_TOKEN}`, Accept: "application/vnd.github.raw", "User-Agent": "jardinsdici-admin", "X-GitHub-Api-Version": "2022-11-28" },
+      headers: { Authorization: `Bearer ${this.env.GITHUB_TOKEN.trim()}`, Accept: "application/vnd.github.raw", "User-Agent": "jardinsdici-admin", "X-GitHub-Api-Version": "2022-11-28" },
     });
     if (res.status === 404) return null;
     if (!res.ok) throw new GitHubError(res.status, `GitHub raw ${path} → ${res.status}`);
@@ -132,7 +134,7 @@ export class GitHub {
     const job = (jobs.data.jobs as any[]).find((j) => j.conclusion === "failure") ?? jobs.data.jobs[0];
     if (!job) return "";
     const res = await fetch(`https://api.github.com/repos/${this.env.GITHUB_REPO}/actions/jobs/${job.id}/logs`, {
-      headers: { Authorization: `Bearer ${this.env.GITHUB_TOKEN}`, "User-Agent": "jardinsdici-admin", Accept: "application/vnd.github+json" },
+      headers: { Authorization: `Bearer ${this.env.GITHUB_TOKEN.trim()}`, "User-Agent": "jardinsdici-admin", Accept: "application/vnd.github+json" },
     });
     const text = await res.text();
     return text.split("\n").map((l) => l.replace(/^\S+Z /, "")).filter((l) => !/^##\[(group|endgroup)\]/.test(l)).slice(-lines).join("\n");
