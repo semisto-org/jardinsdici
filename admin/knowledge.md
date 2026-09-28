@@ -27,6 +27,10 @@ Mai 2013 ouverture du magasin d'ici · printemps 2014 premier maraîcher · 2014
 
 Classes primaires, 2 à 3 heures, jusqu'à 25 élèves, 50 € par visite, réservation via https://calendly.com/inesriou0707/visite-ecole, questions à Simon Focant. Le dossier pédagogique complet est la page `ecole/dossier-pedagogique`.
 
+## La communauté
+
+Un groupe WhatsApp rassemble les bénévoles et les curieux (annonces de chantiers, coups de main, photos) : https://chat.whatsapp.com/HCuIcQ3bBo2Gz5l023gc94 — le lien figure sur la page `benevolat`.
+
 ## Les personnes qui éditent le site
 
 Inès Riou rassemble et met à jour les contenus du site. Michael Hulet (Semisto) a construit le site.
