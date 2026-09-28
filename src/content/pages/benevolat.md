@@ -19,6 +19,9 @@ Le jardin a régulièrement besoin de bras pour entretenir la vie du site lors d
 C'est là que ça se passe au jour le jour : les appels à l'aide de dernière minute, les rappels de chantiers, les photos du jardin et les petits coups de main entre voisins.
 
 - **Rejoindre le groupe :** [notre groupe WhatsApp « Aux Jardins d'ici »](https://chat.whatsapp.com/HCuIcQ3bBo2Gz5l023gc94)
+- **Ou scannez ce QR code avec votre téléphone :**
+
+![QR code à scanner pour rejoindre le groupe WhatsApp des Jardins d’ici](../../assets/images/qr-whatsapp-cdba0d.jpg)
 
 ## Envie de vous investir spécifiquement dans le Jardin-Forêt ?
 
