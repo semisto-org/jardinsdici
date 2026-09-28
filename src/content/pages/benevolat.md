@@ -14,6 +14,12 @@ Le jardin a régulièrement besoin de bras pour entretenir la vie du site lors d
 - **Prochains rendez-vous :** retrouvez les prochains chantiers dans [l'agenda](/agenda) et inscrivez-vous à [la newsletter](https://newsletter.semisto.org) pour ne rien manquer.
 - **Une question ou une envie de nous rejoindre ?** Écrivez-nous à [bonjour@jardinsdici.org](mailto:bonjour@jardinsdici.org) ou passez nous voir directement au magasin *d'ici* pour vous manifester !
 
+## Rejoignez la communauté sur WhatsApp
+
+C'est là que ça se passe au jour le jour : les appels à l'aide de dernière minute, les rappels de chantiers, les photos du jardin et les petits coups de main entre voisins.
+
+- **Rejoindre le groupe :** [notre groupe WhatsApp « Aux Jardins d'ici »](https://chat.whatsapp.com/HCuIcQ3bBo2Gz5l023gc94)
+
 ## Envie de vous investir spécifiquement dans le Jardin-Forêt ?
 
 Vous souhaitez aller plus loin et participer activement à l'aventure de notre forêt nourricière de 20 ares aux côtés de l'équipe de Semisto ?
