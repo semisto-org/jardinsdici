@@ -2,11 +2,11 @@
 main:
   tagline: "Un laboratoire à ciel ouvert pour l'agroécologie, à Naninne"
   intro:
-    - "Ici, on ne se contente pas de regarder pousser les choses. À deux pas du bitume de la Nationale 4 à Naninne, on retrousse ses manches pour faire de la transition écologique une réalité bien vivante."
+    - "Ici, on ne se contente pas de regarder pousser les choses. À Naninne, juste à côté du magasin d’ici, on retrousse ses manches pour faire de la transition écologique une réalité bien vivante."
     - "Les Jardins d’ici, c'est un laboratoire à ciel ouvert. Un espace où l'on expérimente l'agroécologie les mains dans la terre, pour réconcilier ce que l'on cultive et ce que l'on consomme. Un lieu de co-création où consommateurs, producteurs, associations et collaborateurs se croisent, apprennent et partagent un même objectif : redonner de l'espace au vivant."
   stats:
     - value: "20"
-      label: "ares de terrain en bordure de la N4 transformés en oasis d'avenir"
+      label: "ares de terrain transformés en oasis d'avenir"
       href: "/espaces"
     - value: "1400"
       label: "arbres plantés au cœur de notre forêt nourricière"
