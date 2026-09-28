@@ -2,7 +2,7 @@
 // avant commit, pour attraper la plupart des erreurs sans attendre le build.
 import { parse as parseYaml } from "yaml";
 
-export const WRITABLE_TEXT = /^(src\/content\/(pages|events|facts|faq|partners)\/[a-z0-9][a-z0-9/_-]*\.md|src\/content\/site\.yaml|admin\/knowledge\.md)$/;
+export const WRITABLE_TEXT = /^(src\/content\/(pages|events|facts|faq|partners)\/[a-z0-9][a-z0-9/_-]*\.md|src\/content\/(site|textes)\.yaml|admin\/knowledge\.md)$/;
 export const DELETABLE = /^(src\/content\/(pages|events|facts|faq|partners)\/[a-z0-9][a-z0-9/_-]*\.md|src\/assets\/(images|galerie)\/[a-z0-9][a-z0-9._-]*\.(jpe?g|png|webp))$/;
 export const READABLE = /^(src\/content\/|src\/assets\/|admin\/knowledge\.md$)/;
 
@@ -52,6 +52,21 @@ export function validateContent(path: string, text: string, assets: Set<string>)
       const y = parseYaml(text) as any;
       if (!y?.main?.email || !Array.isArray(y.main.stats)) problems.push("site.yaml doit garder la clé main avec email et stats.");
       for (const s of y?.main?.stats ?? []) if (s?.href !== undefined && !(typeof s.href === "string" && /^(\/|https?:\/\/|#)/.test(s.href))) problems.push(`Lien de chiffre clé invalide : ${s.href}`);
+    } catch (e) {
+      problems.push(`YAML invalide : ${(e as Error).message}`);
+    }
+    return problems;
+  }
+  if (path === "src/content/textes.yaml") {
+    try {
+      const y = parseYaml(text) as any;
+      const need = ["menu", "accueil", "pied_de_page", "pages", "agenda", "faq", "saviez_vous", "galerie", "page_introuvable"];
+      const missing = need.filter((k) => !y?.main?.[k]);
+      if (missing.length) problems.push(`textes.yaml doit garder toutes ses sections sous main (manquantes : ${missing.join(", ")}).`);
+      if (!y?.main?.accueil?.titre) problems.push("Le grand titre de l'accueil (accueil.titre) ne peut pas être vide.");
+      const hrefs: unknown[] = [];
+      JSON.stringify(y, (k, v) => { if (k === "href") hrefs.push(v); return v; });
+      for (const h of hrefs) if (!(typeof h === "string" && /^(\/|https?:\/\/|#)/.test(h))) problems.push(`Lien invalide dans textes.yaml : ${h}`);
     } catch (e) {
       problems.push(`YAML invalide : ${(e as Error).message}`);
     }

@@ -3,25 +3,22 @@ import "../styles/global.css";
 import { Image } from "astro:assets";
 import { getEntry } from "astro:content";
 import logo from "../assets/images/logo-jardins-dici.png";
+import { getTextes, inline } from "../lib/textes";
 
 interface Props {
-  title: string;
+  title?: string;
   description?: string;
+  home?: boolean;
 }
-const { title, description } = Astro.props;
+const { title, description, home = false } = Astro.props;
 const site = (await getEntry("site", "main"))!.data;
-const fullTitle = title === "Accueil" ? "Aux Jardins d’ici — Naninne" : `${title} · Aux Jardins d’ici`;
+const T = await getTextes();
+const brand = T.menu.marque.replace(/\*/g, "");
+const fullTitle = home || !title ? T.accueil.titre_onglet : `${title} · ${brand}`;
 const metaDescription = description ?? site.tagline;
 const path = Astro.url.pathname;
 
-const nav = [
-  { href: "/projet", label: "Le projet" },
-  { href: "/espaces", label: "Les espaces" },
-  { href: "/ecole", label: "École" },
-  { href: "/agenda", label: "Agenda" },
-  { href: "/benevolat", label: "S’impliquer" },
-  { href: "/infos-pratiques", label: "Infos pratiques" },
-];
+const nav = T.menu.liens;
 const isActive = (href: string) => path === href || path.startsWith(href + "/");
 ---
 
@@ -42,14 +39,14 @@ const isActive = (href: string) => path === href || path.startsWith(href + "/");
     <script is:inline>document.documentElement.classList.add("js")</script>
   </head>
   <body>
-    <a class="skip" href="#contenu">Aller au contenu</a>
+    <a class="skip" href="#contenu">{T.menu.aller_au_contenu}</a>
     <header class="top">
       <div class="wrap bar">
-        <a href="/" class="brand" aria-label="Aux Jardins d’ici — accueil">
+        <a href="/" class="brand" aria-label={`${brand} — ${T.pages.fil_ariane_accueil}`}>
           <Image src={logo} alt="" width={84} height={56} loading="eager" />
-          <span class="brand-name">Aux Jardins <em>d’ici</em></span>
+          <span class="brand-name" set:html={inline(T.menu.marque)} />
         </a>
-        <button class="burger" type="button" aria-expanded="false" aria-controls="nav" aria-label="Ouvrir le menu"><span></span><span></span><span></span></button>
+        <button class="burger" type="button" aria-expanded="false" aria-controls="nav" aria-label={T.menu.ouvrir} data-open={T.menu.ouvrir} data-close={T.menu.fermer}><span></span><span></span><span></span></button>
           <nav id="nav" class="menu" aria-label="Navigation principale">
             <ul>
               {nav.map((n) => (
@@ -68,30 +65,26 @@ const isActive = (href: string) => path === href || path.startsWith(href + "/");
       <svg class="wave" viewBox="0 0 1200 28" preserveAspectRatio="none" aria-hidden="true"><path d="M0 14 C 100 2, 200 26, 300 14 S 500 2, 600 14 S 800 26, 900 14 S 1100 2, 1200 14" fill="none" stroke="currentColor" stroke-width="2" /></svg>
       <div class="wrap foot-grid">
         <div class="foot-cta">
-          <p class="hand">Pour ne rien rater des prochains rendez-vous…</p>
+          {T.pied_de_page.accroche && <p class="hand">{T.pied_de_page.accroche}</p>}
           <div class="foot-actions">
-            <a class="btn" href={site.newsletterUrl}>S’inscrire à la newsletter</a>
-            <a class="btn ghost" href={site.facebookUrl}>Nous suivre sur Facebook</a>
+            <a class="btn" href={site.newsletterUrl}>{T.pied_de_page.newsletter}</a>
+            <a class="btn ghost" href={site.facebookUrl}>{T.pied_de_page.facebook}</a>
           </div>
         </div>
         <div>
-          <h4>Nous trouver</h4>
-          <p>{site.address}<br /><a href={site.mapsUrl}>Itinéraire</a> · <a href="/infos-pratiques">Accès</a></p>
+          <h4>{T.pied_de_page.trouver_titre}</h4>
+          <p>{site.address}<br /><a href={site.mapsUrl}>{T.pied_de_page.itineraire}</a> · <a href="/infos-pratiques">{T.pied_de_page.acces}</a></p>
           <p><a href={`mailto:${site.email}`}>{site.email}</a></p>
         </div>
         <div>
-          <h4>Explorer</h4>
+          <h4>{T.pied_de_page.explorer_titre}</h4>
           <ul class="foot-links">
-            <li><a href="/le-saviez-vous">Le saviez-vous ?</a></li>
-            <li><a href="/faq">Questions fréquentes</a></li>
-            <li><a href="/galerie">Galerie photo</a></li>
-            <li><a href="/ressources">Ressources</a></li>
-            <li><a href="/projet/odd">Les Jardins d’ici et les ODD</a></li>
+            {T.pied_de_page.liens.map((l) => <li><a href={l.href}>{l.label}</a></li>)}
           </ul>
         </div>
       </div>
       <div class="wrap foot-small">
-        <span>Un projet de Relocalise, Semisto, Natagora Cœur de Wallonie et du magasin <em>d’ici</em>.</span>
+        {T.pied_de_page.partenaires && <span set:html={inline(T.pied_de_page.partenaires)} />}
         <span>Site réalisé par <a href="https://supergenial.be">Super Génial</a></span>
       </div>
     </footer>
@@ -100,7 +93,7 @@ const isActive = (href: string) => path === href || path.startsWith(href + "/");
       b?.addEventListener("click", () => {
         const open = b.getAttribute("aria-expanded") === "true";
         b.setAttribute("aria-expanded", String(!open));
-        b.setAttribute("aria-label", open ? "Ouvrir le menu" : "Fermer le menu");
+        b.setAttribute("aria-label", (open ? b.dataset.open : b.dataset.close) ?? "");
         document.documentElement.classList.toggle("nav-open", !open);
       });
     </script>
@@ -118,7 +111,7 @@ const isActive = (href: string) => path === href || path.startsWith(href + "/");
   .brand { display: flex; align-items: center; gap: 0.6rem; text-decoration: none; color: var(--ink); }
   .brand img { width: 64px; height: auto; }
   .brand-name { font-family: var(--font-display); font-size: 1.3rem; line-height: 1; }
-  .brand-name em { font-style: normal; color: var(--apple); }
+  .brand-name :global(em) { font-style: normal; color: var(--apple); }
 
   .burger { display: none; }
   .menu ul { display: flex; gap: 0.2rem; list-style: none; margin: 0; padding: 0; }

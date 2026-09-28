@@ -1,0 +1,102 @@
+# Tous les textes fixes du site : titres, boutons, menu, pied de page, en-têtes des pages de liste.
+# Mise en forme possible dans les textes : *mots en italique* (dans le grand titre de l'accueil, ils passent en vert).
+main:
+  menu:
+    marque: "Aux Jardins *d’ici*"
+    aller_au_contenu: "Aller au contenu"
+    ouvrir: "Ouvrir le menu"
+    fermer: "Fermer le menu"
+    liens:
+      - { label: "Le projet", href: "/projet" }
+      - { label: "Les espaces", href: "/espaces" }
+      - { label: "École", href: "/ecole" }
+      - { label: "Agenda", href: "/agenda" }
+      - { label: "S’impliquer", href: "/benevolat" }
+      - { label: "Infos pratiques", href: "/infos-pratiques" }
+
+  accueil:
+    titre_onglet: "Aux Jardins d’ici — Naninne"
+    surtitre: "Bienvenue aux Jardins d’ici !"
+    titre: "Redonner de l’espace *au vivant*, à deux pas de la N4."
+    bouton_principal: { label: "Découvrir les espaces", href: "/espaces" }
+    bouton_secondaire: { label: "Voir l’agenda", href: "/agenda" }
+    photo_description: "Vue aérienne des Jardins d’ici : la forêt nourricière, les massifs et le parking du magasin d’ici"
+    photo_legende: "les jardins vus du ciel, septembre 2026 ↗"
+    chiffres_titre: "Les jardins en quelques chiffres"
+    rendezvous_titre: "Prochains rendez-vous à ne pas rater"
+    rendezvous_titre_sans_date: "Derniers rendez-vous"
+    rendezvous_lien: "Tout l’agenda et les éditions précédentes →"
+    espaces_titre: "Des jardins ouverts à tous"
+    espaces_lien: "Tous les espaces →"
+    saviez_vous_lien: "Découvrir les secrets du jardin →"
+    appels:
+      - surtitre: "Enseignant·e ?"
+        titre: "Faites classe au jardin"
+        texte: "Des visites de 2 à 3 heures pour les classes primaires, au fil des saisons."
+        href: "/ecole"
+      - surtitre: "Envie de mettre les mains dans la terre ?"
+        titre: "Rejoignez les chantiers"
+        texte: "Aucune compétence requise : juste de la bonne humeur et des bottes."
+        href: "/benevolat"
+
+  pied_de_page:
+    accroche: "Pour ne rien rater des prochains rendez-vous…"
+    newsletter: "S’inscrire à la newsletter"
+    facebook: "Nous suivre sur Facebook"
+    trouver_titre: "Nous trouver"
+    itineraire: "Itinéraire"
+    acces: "Accès"
+    explorer_titre: "Explorer"
+    liens:
+      - { label: "Le saviez-vous ?", href: "/le-saviez-vous" }
+      - { label: "Questions fréquentes", href: "/faq" }
+      - { label: "Galerie photo", href: "/galerie" }
+      - { label: "Ressources", href: "/ressources" }
+      - { label: "Les Jardins d’ici et les ODD", href: "/projet/odd" }
+    partenaires: "Un projet de Relocalise, Semisto, Natagora Cœur de Wallonie et du magasin *d’ici*."
+
+  pages:
+    fil_ariane_accueil: "Accueil"
+    aller_plus_loin: "Pour aller plus loin…"
+    decouvrir: "Découvrir →"
+    partenaires_titre: "Nos partenaires"
+    partenaires_intro: "Les Jardins d’ici, c'est une coalition d'énergies locales. Chacun gère son bout de terrain, avec sa patte et ses expertises."
+    partenaire_role: "Son rôle :"
+
+  agenda:
+    titre_onglet: "Agenda"
+    surtitre: "On se voit bientôt ?"
+    titre: "Agenda & événements"
+    description: "Ateliers, balades guidées, fêtes et chantiers participatifs : les rendez-vous des Jardins d’ici."
+    a_venir: "À venir"
+    aucun: "Pas de rendez-vous annoncé pour l’instant. Inscrivez-vous à la newsletter pour être prévenu·e des prochaines dates."
+    passes: "Les éditions précédentes"
+    plus_infos: "Plus d’infos et inscriptions"
+    retour: "← Tout l’agenda"
+
+  faq:
+    surtitre: "Bon à savoir"
+    titre: "Questions fréquentes"
+    description: "Tout ce qu’on nous demande souvent avant de venir aux Jardins d’ici."
+    pas_trouve: "Vous n'avez pas trouvé la réponse à votre question ?"
+    ecrivez_nous: "Écrivez-nous"
+
+  saviez_vous:
+    surtitre: "Informations insolites"
+    titre: "Le saviez-vous ?"
+    description: "Ici, chaque brin d'herbe, chaque insecte et chaque tas de bois a une histoire à raconter. Prenez le temps de flâner et découvrez les petits et grands secrets de notre écosystème en transition."
+    etiquette: "Le saviez-vous ?"
+    source: "Source :"
+
+  galerie:
+    surtitre: "Au fil des saisons"
+    titre: "Galerie photo"
+    description: "Les Jardins d’ici en images, des premières saisons maraîchères de 2014 à la forêt nourricière d’aujourd’hui."
+    photo_description: "Photo des Jardins d’ici"
+    album: "Voir tout l’album photo"
+
+  page_introuvable:
+    surtitre: "Oups…"
+    titre: "Cette page a pris la clé des champs"
+    description: "Elle a peut-être déménagé avec la nouvelle version du site."
+    retour: "Retour à l’accueil"

@@ -19,6 +19,7 @@ Tout le contenu éditorial est en Markdown dans `src/content/`, un fichier par �
 - `events/AAAA-MM-JJ-slug.md` — agenda ; `date` obligatoire, « à venir » / « passés » calculés au build.
 - `facts/`, `faq/`, `partners/` — Le saviez-vous, FAQ, partenaires.
 - `site.yaml` — chiffres clés de l'accueil, contact, liens (newsletter, Facebook, réservation école).
+- `textes.yaml` — tous les autres textes visibles (titres et boutons de l'accueil, menu, pied de page, en-têtes des pages de liste, libellés). Aucun texte visible ne doit être codé en dur dans un gabarit : tout nouveau texte va dans ce fichier et dans son schéma (`src/content.config.ts`). Seule exception volontaire : la mention « Site réalisé par Super Génial ».
 - Images : `src/assets/images/` (référencées en chemin relatif depuis le Markdown) ; galerie : tout fichier déposé dans `src/assets/galerie/` apparaît sur `/galerie`.
 
 ## Admin conversationnelle

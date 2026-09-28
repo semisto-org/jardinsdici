@@ -65,3 +65,12 @@ test("HTML actif et liens javascript: refusés", () => {
   expect(ev("Un texte *normal* avec un [lien](https://www.d-ici.be).")).toEqual([]);
   expect(validateContent("src/content/events/2026-10-04-b.md", '---\ntitle: B\ndate: 2026-10-04\nlink: "javascript:alert(1)"\n---\n', assets).length).toBeGreaterThan(0);
 });
+
+test("textes.yaml : modifiable, validé, sections obligatoires", async () => {
+  expect(checkPath("src/content/textes.yaml", WRITABLE_TEXT)).toBeNull();
+  const current = await Bun.file("src/content/textes.yaml").text();
+  expect(validateContent("src/content/textes.yaml", current, assets)).toEqual([]);
+  expect(validateContent("src/content/textes.yaml", current.replace(/\n  faq:[\s\S]*?\n  saviez_vous:/, "\n  saviez_vous:"), assets).length).toBeGreaterThan(0);
+  expect(validateContent("src/content/textes.yaml", current.replace('href: "/projet"', 'href: "javascript:alert(1)"'), assets).length).toBeGreaterThan(0);
+  expect(validateContent("src/content/textes.yaml", current.replace("Redonner de l’espace", "<script>x</script>"), assets).length).toBeGreaterThan(0);
+});

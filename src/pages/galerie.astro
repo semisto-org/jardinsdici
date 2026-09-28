@@ -3,19 +3,22 @@ import { Image } from "astro:assets";
 import { getEntry } from "astro:content";
 import Base from "../layouts/Base.astro";
 import PageHeader from "../components/PageHeader.astro";
+import { getTextes } from "../lib/textes";
+
 
 // Toute image déposée dans src/assets/galerie apparaît ici, de la plus récente à la plus ancienne (nom de fichier).
 const files = import.meta.glob<{ default: ImageMetadata }>("../assets/galerie/*.{jpg,jpeg,png,webp}", { eager: true });
 const photos = Object.entries(files).sort(([a], [b]) => b.localeCompare(a)).map(([, m]) => m.default);
 const site = (await getEntry("site", "main"))!.data;
+const T = (await getTextes()).galerie;
 ---
 
-<Base title="Galerie photo" description="Les Jardins d’ici en images, de 2014 à aujourd’hui.">
-  <PageHeader title="Galerie photo" description="Les Jardins d’ici en images, des premières saisons maraîchères de 2014 à la forêt nourricière d’aujourd’hui." kicker="Au fil des saisons" />
+<Base title={T.titre} description={T.description}>
+  <PageHeader title={T.titre} description={T.description} kicker={T.surtitre} />
   <section class="wrap gal">
-    {photos.map((p) => <Image src={p} alt="Photo des Jardins d’ici" widths={[400, 800]} sizes="(max-width: 700px) 50vw, 300px" />)}
+    {photos.map((p) => <Image src={p} alt={T.photo_description} widths={[400, 800]} sizes="(max-width: 700px) 50vw, 300px" />)}
   </section>
-  <p class="wrap more"><a class="btn ghost" href={site.photosUrl}>Voir tout l’album photo</a></p>
+  <p class="wrap more"><a class="btn ghost" href={site.photosUrl}>{T.album}</a></p>
 </Base>
 
 <style>

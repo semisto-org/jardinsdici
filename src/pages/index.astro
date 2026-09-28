@@ -5,9 +5,12 @@ import Base from "../layouts/Base.astro";
 import EventCard from "../components/EventCard.astro";
 import PageCard from "../components/PageCard.astro";
 import { eventsSplit, childPages } from "../lib/content";
+import { getTextes, inline } from "../lib/textes";
 import hero from "../assets/images/hero-vue-aerienne.jpg";
 
 const site = (await getEntry("site", "main"))!.data;
+const T = (await getTextes()).accueil;
+const etiquetteSaviezVous = (await getTextes()).saviez_vous.etiquette;
 const { upcoming, past } = await eventsSplit();
 const next = upcoming.length ? upcoming.slice(0, 3) : past.slice(0, 3);
 const spaces = await childPages("espaces");
@@ -15,28 +18,28 @@ const facts = (await getCollection("facts")).sort((a, b) => a.data.order - b.dat
 const fact = facts[new Date().getUTCDate() % facts.length];
 ---
 
-<Base title="Accueil">
+<Base home>
   <section class="hero">
     <div class="wrap hero-grid">
       <div class="hero-text">
-        <p class="hand rise">Bienvenue aux Jardins d’ici !</p>
-        <h1 class="rise d1">Redonner de l’espace <span>au vivant</span>, à deux pas de la N4.</h1>
+        {T.surtitre && <p class="hand rise">{T.surtitre}</p>}
+        <h1 class="rise d1" set:html={inline(T.titre)} />
         {site.intro.map((p, i) => <p class={`lede rise d${i + 2}`}>{p}</p>)}
         <div class="hero-actions rise d3">
-          <a class="btn" href="/espaces">Découvrir les espaces</a>
-          <a class="btn ghost" href="/agenda">Voir l’agenda</a>
+          <a class="btn" href={T.bouton_principal.href}>{T.bouton_principal.label}</a>
+          <a class="btn ghost" href={T.bouton_secondaire.href}>{T.bouton_secondaire.label}</a>
         </div>
       </div>
       <figure class="hero-img rise d2">
-        <Image src={hero} alt="Vue aérienne des Jardins d’ici : la forêt nourricière, les massifs et le parking du magasin d’ici" widths={[600, 1000, 1500]} sizes="(max-width: 900px) 100vw, 50vw" loading="eager" fetchpriority="high" />
-        <figcaption class="hand">les jardins vus du ciel, septembre 2026 ↗</figcaption>
+        <Image src={hero} alt={T.photo_description} widths={[600, 1000, 1500]} sizes="(max-width: 900px) 100vw, 50vw" loading="eager" fetchpriority="high" />
+        {T.photo_legende && <figcaption class="hand">{T.photo_legende}</figcaption>}
       </figure>
     </div>
   </section>
 
   <section class="stats">
     <div class="wrap">
-      <h2>Les jardins en quelques chiffres</h2>
+      <h2>{T.chiffres_titre}</h2>
       <ul class="stat-list">
         {site.stats.map((s) => (
           <li>
@@ -52,16 +55,16 @@ const fact = facts[new Date().getUTCDate() % facts.length];
 
   <section class="wrap block">
     <div class="block-head">
-      <h2>{upcoming.length ? "Prochains rendez-vous à ne pas rater" : "Derniers rendez-vous"}</h2>
-      <a href="/agenda">Tout l’agenda et les éditions précédentes →</a>
+      <h2>{upcoming.length ? T.rendezvous_titre : T.rendezvous_titre_sans_date}</h2>
+      <a href="/agenda">{T.rendezvous_lien}</a>
     </div>
     <div class="events">{next.map((e) => <EventCard event={e} past={!upcoming.length} />)}</div>
   </section>
 
   <section class="wrap block">
     <div class="block-head">
-      <h2>Des jardins ouverts à tous</h2>
-      <a href="/espaces">Tous les espaces →</a>
+      <h2>{T.espaces_titre}</h2>
+      <a href="/espaces">{T.espaces_lien}</a>
     </div>
     <div class="spaces">{spaces.slice(0, 4).map((p, i) => <PageCard page={p} index={i} />)}</div>
   </section>
@@ -71,17 +74,18 @@ const fact = facts[new Date().getUTCDate() % facts.length];
       <a class="fact" href="/le-saviez-vous">
         {fact.data.image && <Image src={fact.data.image} alt="" widths={[300, 600]} sizes="240px" />}
         <div>
-          <p class="hand">Le saviez-vous ?</p>
+          <p class="hand">{etiquetteSaviezVous}</p>
           <h3>{fact.data.title}</h3>
-          <span>Découvrir les secrets du jardin →</span>
+          <span>{T.saviez_vous_lien}</span>
         </div>
       </a>
     </section>
   )}
 
   <section class="wrap block cta-row">
-    <a class="cta" href="/ecole"><span class="hand">Enseignant·e ?</span><strong>Faites classe au jardin</strong><span>Des visites de 2 à 3 heures pour les classes primaires, au fil des saisons.</span></a>
-    <a class="cta alt" href="/benevolat"><span class="hand">Envie de mettre les mains dans la terre ?</span><strong>Rejoignez les chantiers</strong><span>Aucune compétence requise : juste de la bonne humeur et des bottes.</span></a>
+    {T.appels.map((a, i) => (
+      <a class:list={["cta", { alt: i % 2 === 1 }]} href={a.href}>{a.surtitre && <span class="hand">{a.surtitre}</span>}<strong>{a.titre}</strong>{a.texte && <span>{a.texte}</span>}</a>
+    ))}
   </section>
 </Base>
 
@@ -89,7 +93,7 @@ const fact = facts[new Date().getUTCDate() % facts.length];
   .hero { padding: clamp(2rem, 6vw, 4.5rem) 0 3rem; }
   .hero-grid { display: grid; grid-template-columns: 1.05fr 0.95fr; gap: clamp(2rem, 5vw, 4rem); align-items: center; }
   .hero .hand { font-size: 2rem; margin: 0 0 0.4rem; transform: rotate(-2deg); transform-origin: left; }
-  .hero h1 span { color: var(--moss); font-style: italic; }
+  .hero h1 :global(em) { color: var(--moss); font-style: italic; }
   .lede { color: var(--ink-soft); font-size: 1.1rem; max-width: 56ch; }
   .hero-actions { display: flex; flex-wrap: wrap; gap: 0.7rem; margin-top: 1.5rem; }
   .hero-img { margin: 0; position: relative; }

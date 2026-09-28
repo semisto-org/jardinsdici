@@ -1,6 +1,8 @@
 ---
 import { Image } from "astro:assets";
 import type { ImageMetadata } from "astro";
+import { getTextes } from "../lib/textes";
+
 
 interface Props {
   title: string;
@@ -10,6 +12,7 @@ interface Props {
   kicker?: string;
 }
 const { title, description, cover, crumbs = [], kicker } = Astro.props;
+const accueil = (await getTextes()).pages.fil_ariane_accueil;
 ---
 
 <header class:list={["ph", { "has-cover": cover }]}>
@@ -17,7 +20,7 @@ const { title, description, cover, crumbs = [], kicker } = Astro.props;
     <div class="ph-text">
       {crumbs.length > 0 && (
         <nav class="crumbs rise" aria-label="Fil d’Ariane">
-          <a href="/">Accueil</a>
+          <a href="/">{accueil}</a>
           {crumbs.map((c) => (<><span aria-hidden="true">/</span><a href={c.href}>{c.title}</a></>))}
         </nav>
       )}

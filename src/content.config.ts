@@ -77,4 +77,32 @@ const site = defineCollection({
   }),
 });
 
-export const collections = { pages, events, facts, faq, partners, site };
+// Tous les textes fixes du site (textes.yaml) : aucun texte visible ne reste codé en dur dans les gabarits.
+const txt = () => z.string().min(1);
+const lien = () => z.object({ label: txt(), href: siteHref() });
+const textes = defineCollection({
+  loader: file("src/content/textes.yaml"),
+  schema: z.object({
+    menu: z.object({ marque: txt(), aller_au_contenu: txt(), ouvrir: txt(), fermer: txt(), liens: z.array(lien()).min(1) }),
+    accueil: z.object({
+      titre_onglet: txt(), surtitre: z.string(), titre: txt(),
+      bouton_principal: lien(), bouton_secondaire: lien(),
+      photo_description: txt(), photo_legende: z.string(),
+      chiffres_titre: txt(), rendezvous_titre: txt(), rendezvous_titre_sans_date: txt(), rendezvous_lien: txt(),
+      espaces_titre: txt(), espaces_lien: txt(), saviez_vous_lien: txt(),
+      appels: z.array(z.object({ surtitre: z.string(), titre: txt(), texte: z.string(), href: siteHref() })),
+    }),
+    pied_de_page: z.object({
+      accroche: z.string(), newsletter: txt(), facebook: txt(), trouver_titre: txt(), itineraire: txt(), acces: txt(),
+      explorer_titre: txt(), liens: z.array(lien()), partenaires: z.string(),
+    }),
+    pages: z.object({ fil_ariane_accueil: txt(), aller_plus_loin: txt(), decouvrir: txt(), partenaires_titre: txt(), partenaires_intro: z.string(), partenaire_role: txt() }),
+    agenda: z.object({ titre_onglet: txt(), surtitre: z.string(), titre: txt(), description: z.string(), a_venir: txt(), aucun: txt(), passes: txt(), plus_infos: txt(), retour: txt() }),
+    faq: z.object({ surtitre: z.string(), titre: txt(), description: z.string(), pas_trouve: z.string(), ecrivez_nous: txt() }),
+    saviez_vous: z.object({ surtitre: z.string(), titre: txt(), description: z.string(), etiquette: txt(), source: txt() }),
+    galerie: z.object({ surtitre: z.string(), titre: txt(), description: z.string(), photo_description: txt(), album: txt() }),
+    page_introuvable: z.object({ surtitre: z.string(), titre: txt(), description: z.string(), retour: txt() }),
+  }),
+});
+
+export const collections = { pages, events, facts, faq, partners, site, textes };

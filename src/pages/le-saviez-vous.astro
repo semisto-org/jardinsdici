@@ -3,22 +3,25 @@ import { getCollection, render } from "astro:content";
 import { Image } from "astro:assets";
 import Base from "../layouts/Base.astro";
 import PageHeader from "../components/PageHeader.astro";
+import { getTextes } from "../lib/textes";
 
+
+const T = (await getTextes()).saviez_vous;
 const facts = (await getCollection("facts")).sort((a, b) => a.data.order - b.data.order);
 const rendered = await Promise.all(facts.map(async (f) => ({ f, Content: (await render(f)).Content })));
 ---
 
-<Base title="Le saviez-vous ?" description="Les petits et grands secrets de notre écosystème en transition.">
-  <PageHeader title="Le saviez-vous ?" description="Ici, chaque brin d'herbe, chaque insecte et chaque tas de bois a une histoire à raconter. Prenez le temps de flâner et découvrez les petits et grands secrets de notre écosystème en transition." kicker="Informations insolites" />
+<Base title={T.titre} description={T.description}>
+  <PageHeader title={T.titre} description={T.description} kicker={T.surtitre} />
   <section class="wrap facts">
     {rendered.map(({ f, Content }, i) => (
       <article class="fact" style={`--r:${i % 2 ? 1 : -1}deg`}>
         {f.data.image && <Image src={f.data.image} alt="" widths={[400, 700]} sizes="(max-width: 700px) 100vw, 420px" />}
         <div>
-          <p class="hand">Le saviez-vous ?</p>
+          <p class="hand">{T.etiquette}</p>
           <h2>{f.data.title}</h2>
           <div class="prose"><Content /></div>
-          {f.data.source && <p class="src">Source : <a href={f.data.source.url}>{f.data.source.label}</a></p>}
+          {f.data.source && <p class="src">{T.source} <a href={f.data.source.url}>{f.data.source.label}</a></p>}
         </div>
       </article>
     ))}

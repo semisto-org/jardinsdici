@@ -2,10 +2,13 @@
 import { Image } from "astro:assets";
 import type { Page } from "../lib/content";
 import { excerpt } from "../lib/content";
+import { getTextes } from "../lib/textes";
+
 
 interface Props { page: Page; index?: number }
 const { page, index = 0 } = Astro.props;
 const { title, description, cover } = page.data;
+const decouvrir = (await getTextes()).pages.decouvrir;
 const tilt = [-1.2, 0.8, -0.5, 1.1, -0.9][index % 5];
 ---
 
@@ -18,7 +21,7 @@ const tilt = [-1.2, 0.8, -0.5, 1.1, -0.9][index % 5];
   <div class="tag">
     <h3>{title}</h3>
     <p>{description ?? excerpt(page.body, 110)}</p>
-    <span class="go" aria-hidden="true">Découvrir →</span>
+    <span class="go" aria-hidden="true">{decouvrir}</span>
   </div>
 </a>
 

@@ -5,6 +5,8 @@ import Base from "../layouts/Base.astro";
 import PageHeader from "../components/PageHeader.astro";
 import PageCard from "../components/PageCard.astro";
 import { childPages, breadcrumb, type Page } from "../lib/content";
+import { getTextes } from "../lib/textes";
+
 
 export async function getStaticPaths() {
   const pages = await getCollection("pages");
@@ -15,6 +17,7 @@ const { page } = Astro.props as { page: Page };
 const { Content } = await render(page);
 const children = await childPages(page.id);
 const crumbs = await breadcrumb(page.id);
+const T = (await getTextes()).pages;
 const partners = page.id === "projet" ? (await getCollection("partners")).sort((a, b) => a.data.order - b.data.order) : [];
 ---
 
@@ -33,7 +36,7 @@ const partners = page.id === "projet" ? (await getCollection("partners")).sort((
 
   {children.length > 0 && page.id !== "espaces" && (
     <section class="wrap sub">
-      <p class="hand">Pour aller plus loin…</p>
+      <p class="hand">{T.aller_plus_loin}</p>
       <div class="grid-cards">
         {children.map((c, i) => <PageCard page={c} index={i} />)}
       </div>
@@ -42,14 +45,14 @@ const partners = page.id === "projet" ? (await getCollection("partners")).sort((
 
   {partners.length > 0 && (
     <section class="wrap partners" id="partenaires">
-      <h2>Nos partenaires</h2>
-      <p class="intro">Les Jardins d’ici, c'est une coalition d'énergies locales. Chacun gère son bout de terrain, avec sa patte et ses expertises.</p>
+      <h2>{T.partenaires_titre}</h2>
+      {T.partenaires_intro && <p class="intro">{T.partenaires_intro}</p>}
       <div class="p-grid">
         {partners.map((p) => (
           <div class="partner">
             {p.data.image ? <Image src={p.data.image} alt="" widths={[320, 640]} sizes="(max-width: 700px) 100vw, 280px" /> : <div class="p-ph" aria-hidden="true">🤝</div>}
             <h3>{p.data.url ? <a href={p.data.url}>{p.data.name}</a> : p.data.name}</h3>
-            <p><span class="hand">Son rôle :</span> {p.data.role.replace(/\*/g, "")}</p>
+            <p><span class="hand">{T.partenaire_role}</span> {p.data.role.replace(/\*/g, "")}</p>
           </div>
         ))}
       </div>

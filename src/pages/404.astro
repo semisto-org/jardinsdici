@@ -1,9 +1,11 @@
 ---
 import Base from "../layouts/Base.astro";
 import PageHeader from "../components/PageHeader.astro";
+import { getTextes } from "../lib/textes";
+const T = (await getTextes()).page_introuvable;
 ---
 
-<Base title="Page introuvable">
-  <PageHeader title="Cette page a pris la clé des champs" description="Elle a peut-être déménagé avec la nouvelle version du site." kicker="Oups…" />
-  <p class="narrow"><a class="btn" href="/">Retour à l’accueil</a></p>
+<Base title={T.titre}>
+  <PageHeader title={T.titre} description={T.description} kicker={T.surtitre} />
+  <p class="narrow"><a class="btn" href="/">{T.retour}</a></p>
 </Base>
