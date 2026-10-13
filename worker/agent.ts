@@ -12,7 +12,7 @@ type ToolResult = Anthropic.Beta.BetaToolResultBlockParam;
 export interface AgentEnv {
   ANTHROPIC_API_KEY: string;
   MODEL?: string;
-  PREVIEW_URL_TEMPLATE: string; // ex. "https://{alias}-jardinsdici.birch.workers.dev"
+  PREVIEW_URL_TEMPLATE: string; // ex. "https://{alias}-jardinsdici.semisto.workers.dev"
   SITE_URL: string;
 }
 
