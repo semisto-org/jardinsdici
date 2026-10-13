@@ -9,7 +9,7 @@ Site vitrine Astro des Jardins d'ici (Naninne), hébergé sur Cloudflare. Deux W
 - `bunx wrangler deploy` — publie `dist/` (site public)
 - `bunx wrangler dev -c wrangler.admin.jsonc` — admin en local (identité de dev via `DEV_AUTH_EMAIL` dans `.dev.vars`)
 - `bun test worker/` — tests des garde-fous de l'agent
-- Mise en ligne normale : push sur `main` → GitHub Actions construit et déploie les deux Workers ; push sur `chat/*` → aperçu `https://chat-<id>-jardinsdici.birch.workers.dev`
+- Mise en ligne normale : push sur `main` → GitHub Actions construit et déploie les deux Workers ; push sur `chat/*` → aperçu `https://chat-<id>-jardinsdici.semisto.workers.dev`
 
 ## Où vit le contenu
 
