@@ -23,8 +23,7 @@
     "MODEL": "claude-opus-5",
     // Cloudflare Access (application « jardinsdici-admin », tout le trafic, e-mails autorisés + code par e-mail)
     "ACCESS_TEAM_DOMAIN": "semisto.cloudflareaccess.com",
-    // AUD à renseigner une fois Access activé sur le Worker ; vide, l'admin refuse tout le monde.
-    "ACCESS_AUD": ""
+    "ACCESS_AUD": "9b1f187b19c23e89f0a7da4db289ed4ccad61c978475c23a428b0fe002111c58"
     // Secrets (wrangler secret put -c wrangler.admin.jsonc) : ANTHROPIC_API_KEY, GITHUB_TOKEN.
   }
 }
