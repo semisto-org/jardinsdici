@@ -15,7 +15,7 @@
   "migrations": [{ "tag": "v1", "new_sqlite_classes": ["ConversationRunner"] }],
   "vars": {
     "GITHUB_REPO": "semisto-org/jardinsdici",
-    "SITE_URL": "https://jardinsdici.semisto.workers.dev",
+    "SITE_URL": "https://www.jardinsdici.org",
     "PREVIEW_URL_TEMPLATE": "https://{alias}-jardinsdici.semisto.workers.dev",
     "ADMIN_EMAILS": "m.hulet@semisto.org,ines.riou@student.unamur.be",
     "ADMIN_NAMES": "m.hulet@semisto.org=Michael Hulet,ines.riou@student.unamur.be=Inès Riou",
