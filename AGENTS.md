@@ -1,6 +1,6 @@
 # Aux Jardins d'ici — site web
 
-Site vitrine Astro des Jardins d'ici (Naninne), hébergé sur Cloudflare. Deux Workers : `jardinsdici` (site public, fichiers statiques seulement, `wrangler.jsonc`) et `jardinsdici-admin` (admin conversationnelle, `wrangler.admin.jsonc`, sur son propre domaine protégé par Cloudflare Access). Remplace l'ancien site Super/Notion (www.jardinsdici.org). Réalisation Super Génial. Doctrine et critères : `ISA.md`.
+Site vitrine Astro des Jardins d'ici (Naninne), hébergé sur Cloudflare. Deux Workers : `jardinsdici` (site public, fichiers statiques seulement, `wrangler.jsonc`) et `jardinsdici-admin` (admin conversationnelle, `wrangler.admin.jsonc`, sur son propre domaine `admin.jardinsdici.org`, protégé par Cloudflare Access). Remplace l'ancien site Super/Notion (www.jardinsdici.org). Réalisation Super Génial. Doctrine et critères : `ISA.md`.
 
 ## Commandes
 

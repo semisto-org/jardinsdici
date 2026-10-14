@@ -7,6 +7,7 @@
   "compatibility_flags": ["nodejs_compat"],
   "workers_dev": true,
   "preview_urls": false,
+  "routes": [{ "pattern": "admin.jardinsdici.org", "custom_domain": true }],
   "rules": [{ "type": "Text", "globs": ["**/*.html", "**/*.md"], "fallthrough": true }],
   "d1_databases": [
     { "binding": "DB", "database_name": "jardinsdici-admin", "database_id": "af47d289-22e3-4c7a-a5ea-e88b72322e72", "migrations_dir": "migrations" }
