@@ -69,8 +69,11 @@ test("HTML actif et liens javascript: refusés", () => {
 test("textes.yaml : modifiable, validé, sections obligatoires", async () => {
   expect(checkPath("src/content/textes.yaml", WRITABLE_TEXT)).toBeNull();
   const current = await Bun.file("src/content/textes.yaml").text();
+  const photo = current.match(/\n    photo: "\.\.\/(assets\/images\/[^"]+)"/)![1];
+  const assets = new Set([`src/${photo}`]);
   expect(validateContent("src/content/textes.yaml", current, assets)).toEqual([]);
   expect(validateContent("src/content/textes.yaml", current.replace(/\n  faq:[\s\S]*?\n  saviez_vous:/, "\n  saviez_vous:"), assets).length).toBeGreaterThan(0);
   expect(validateContent("src/content/textes.yaml", current.replace('href: "/projet"', 'href: "javascript:alert(1)"'), assets).length).toBeGreaterThan(0);
   expect(validateContent("src/content/textes.yaml", current.replace("Redonner de l’espace", "<script>x</script>"), assets).length).toBeGreaterThan(0);
+  expect(validateContent("src/content/textes.yaml", current.replace(photo, "assets/images/absente.jpg"), assets).length).toBeGreaterThan(0);
 });
