@@ -4,11 +4,11 @@ import { DurableObject } from "cloudflare:workers";
 import Anthropic from "@anthropic-ai/sdk";
 import { GitHub, bytesToB64 } from "./github";
 import { SiteAgent, type AgentEvent } from "./agent";
-import { editorFromEmail } from "./auth";
+import { nameFromEmail } from "./auth";
 import type { Env } from "./env";
 import { addMessages, loadHistory, touch, commitAuthor } from "./db";
 
-interface Job { convId: string; editorEmail: string }
+interface Job { convId: string; editorEmail: string; editorName?: string }
 export interface Live { running: boolean; text: string; events: AgentEvent[] }
 
 export class ConversationRunner extends DurableObject<Env> {
@@ -32,7 +32,7 @@ export class ConversationRunner extends DurableObject<Env> {
     const conv = await env.DB.prepare(`SELECT * FROM conversations WHERE id = ?`).bind(job.convId).first<Record<string, any>>();
     if (!conv) { await this.ctx.storage.delete("job"); return; }
     this.state.running = true;
-    const editor = editorFromEmail(job.editorEmail, env.ADMIN_NAMES);
+    const editor = { email: job.editorEmail, name: job.editorName ?? nameFromEmail(job.editorEmail) };
     const emit = (e: AgentEvent) => {
       if (e.type === "text") this.state.text += e.delta;
       else this.state.events.push(e);

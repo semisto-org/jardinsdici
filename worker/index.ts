@@ -2,7 +2,9 @@
 // rien de ce qui est publié sur le site ne peut s'exécuter dans l'origine de l'admin.
 import Anthropic from "@anthropic-ai/sdk";
 import adminPage from "./admin.html";
-import { authenticate, editorFromEmail, type Editor } from "./auth";
+import { authenticate } from "./auth";
+import { resolveUser, listUsers, can, cleanInput, checkChange, owners, type User } from "./users";
+import { accessStatus, syncAccess } from "./access";
 import { GitHub } from "./github";
 import { branchFor } from "./agent";
 import { publishBranch } from "./publish";
@@ -20,8 +22,9 @@ export default {
     const url = new URL(req.url);
     if (url.pathname === "/favicon.png") return fetch(new URL("/favicon.png", env.SITE_URL));
 
-    const editor = await authenticate(req, env);
-    if (!editor) return url.pathname.startsWith("/api/") ? json({ error: "Non autorisé" }, 401) : new Response("Accès réservé aux éditeurs du site des Jardins d'ici.", { status: 403 });
+    const email = await authenticate(req, env);
+    const editor = email ? await resolveUser(env, email) : null;
+    if (!editor) return url.pathname.startsWith("/api/") ? json({ error: "Non autorisé" }, 401) : new Response("Accès réservé aux partenaires des Jardins d'ici. Si vous pensez devoir y avoir accès, demandez-le à un administrateur.", { status: 403, headers: { "Content-Type": "text/plain; charset=utf-8" } });
 
     if (url.pathname === "/" || url.pathname === "/admin") {
       return new Response(adminPage, {
@@ -46,16 +49,21 @@ export default {
   },
 } satisfies ExportedHandler<Env>;
 
-async function api(req: Request, url: URL, env: Env, editor: Editor): Promise<Response> {
+async function api(req: Request, url: URL, env: Env, editor: User): Promise<Response> {
   const parts = url.pathname.replace(/^\/api\/admin\/?/, "").split("/").filter(Boolean);
   // Créé à la demande : sans jeton GitHub, l'admin reste consultable et l'erreur est explicite.
   let ghInstance: GitHub | null = null;
   const gh = () => (ghInstance ??= new GitHub(env));
 
   if (parts[0] === "me") {
-    const names = Object.fromEntries(env.ADMIN_EMAILS.split(",").map((e) => e.trim()).filter(Boolean).map((e) => [e, editorFromEmail(e, env.ADMIN_NAMES).name]));
-    return json({ email: editor.email, name: editor.name, names, site: env.SITE_URL });
+    const users = await listUsers(env);
+    const names = Object.fromEntries(users.map((u) => [u.email, u.name]));
+    return json({ email: editor.email, name: editor.name, role: editor.role, can: { site: can(editor, "site"), users: can(editor, "users") }, names, site: env.SITE_URL });
   }
+
+  if (parts[0] === "users") return usersApi(req, parts, env, editor);
+
+  if (!can(editor, "site")) return json({ error: "Modifier le site est réservé aux éditeurs." }, 403);
 
   if (parts[0] === "conversations" && parts.length === 1) {
     if (req.method === "GET") {
@@ -133,7 +141,7 @@ async function api(req: Request, url: URL, env: Env, editor: Editor): Promise<Re
     await addMessages(env, id, [{ role: "user", author: editor.email, content }]);
     if (conv.title === "Nouvelle conversation" && text) await touch(env, id, { title: text.slice(0, 70) + (text.length > 70 ? "…" : "") });
     try {
-      await runner().start({ convId: id, editorEmail: editor.email });
+      await runner().start({ convId: id, editorEmail: editor.email, editorName: editor.name });
     } catch (e) {
       await touch(env, id, { busy: 0 });
       throw e;
@@ -172,6 +180,43 @@ async function api(req: Request, url: URL, env: Env, editor: Editor): Promise<Re
     await gh().deleteBranch(conv.branch);
     await touch(env, id, { status: "abandonnee", busy: 0 });
     return json({ ok: true });
+  }
+
+  return json({ error: "Introuvable" }, 404);
+}
+
+async function usersApi(req: Request, parts: string[], env: Env, editor: User): Promise<Response> {
+  if (!can(editor, "users")) return json({ error: "La gestion des utilisateurs est réservée aux administrateurs." }, 403);
+  const withState = async (access?: Awaited<ReturnType<typeof syncAccess>>) =>
+    json({ users: await listUsers(env), owners: owners(env), access: access ?? (await accessStatus(env)) });
+
+  if (parts.length === 1 && req.method === "GET") return withState();
+
+  if (parts[1] === "sync" && req.method === "POST") return withState(await syncAccess(env));
+
+  if (parts.length === 1 && req.method === "POST") {
+    const input = cleanInput(await req.json(), true);
+    if ("error" in input) return json(input, 400);
+    const exists = await env.DB.prepare(`SELECT email FROM users WHERE email = ?`).bind(input.email).first();
+    if (exists) return json({ error: "Cette adresse a déjà un compte." }, 409);
+    await env.DB.prepare(`INSERT INTO users (email, name, organisation, role, active, created_at, created_by) VALUES (?, ?, ?, ?, 1, ?, ?)`)
+      .bind(input.email, input.name, input.organisation ?? null, input.role, Date.now(), editor.email).run();
+    return withState(await syncAccess(env));
+  }
+
+  const email = decodeURIComponent(parts[1] ?? "").toLowerCase();
+  if (parts.length === 2 && req.method === "PATCH") {
+    const users = await listUsers(env);
+    const target = users.find((u) => u.email === email);
+    if (!target) return json({ error: "Utilisateur introuvable." }, 404);
+    const input = cleanInput(await req.json(), false);
+    if ("error" in input) return json(input, 400);
+    delete input.email; // l'adresse identifie le compte : pour la changer, on crée un nouveau compte
+    const refused = checkChange(env, editor, target, input, users);
+    if (refused) return json({ error: refused }, 409);
+    const keys = Object.keys(input) as (keyof typeof input)[];
+    if (keys.length) await env.DB.prepare(`UPDATE users SET ${keys.map((k) => `${k} = ?`).join(", ")} WHERE email = ?`).bind(...keys.map((k) => input[k] ?? null), email).run();
+    return withState(input.active !== undefined ? await syncAccess(env) : undefined);
   }
 
   return json({ error: "Introuvable" }, 404);

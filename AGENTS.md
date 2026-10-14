@@ -7,7 +7,7 @@ Site vitrine Astro des Jardins d'ici (Naninne), hébergé sur Cloudflare. Deux W
 - `bun run dev` — serveur local (port 4321)
 - `bun run build` — build statique dans `dist/` ; échoue si un contenu ne respecte pas les schémas
 - `bunx wrangler deploy` — publie `dist/` (site public)
-- `bunx wrangler dev -c wrangler.admin.jsonc` — admin en local (identité de dev via `DEV_AUTH_EMAIL` dans `.dev.vars`)
+- `bunx wrangler dev -c wrangler.admin.jsonc --local-upstream localhost:8787` — admin en local (identité de dev via `DEV_AUTH_EMAIL` dans `.dev.vars` ; `--local-upstream` garde `localhost` comme hôte, sinon wrangler prend celui de la route et l'identité de dev est refusée). Base locale : `bunx wrangler d1 migrations apply jardinsdici-admin --local -c wrangler.admin.jsonc`
 - `bun test worker/` — tests des garde-fous de l'agent
 - Mise en ligne normale : push sur `main` → GitHub Actions construit et déploie les deux Workers ; push sur `chat/*` → aperçu `https://chat-<id>-jardinsdici.semisto.workers.dev`
 
@@ -25,6 +25,8 @@ Tout le contenu éditorial est en Markdown dans `src/content/`, un fichier par �
 ## Admin conversationnelle
 
 `worker/` : l'éditeur converse avec un agent Claude (`worker/agent.ts`) qui travaille sur la branche `chat/<id>` de la conversation ; l'agent tourne dans un Durable Object par conversation (`worker/runner.ts`, alarme), l'historique est dans D1 (`jardinsdici-admin`). Publier = fusion dans `main` après un aperçu construit avec succès (`worker/publish.ts`). Ce que l'agent sait du collectif : `admin/knowledge.md` (public, pas de données personnelles).
+
+Utilisateurs et droits : table D1 `users` (`worker/users.ts`), gérée depuis l'écran « Utilisateurs ». Rôles : `admin` (gère les utilisateurs), `editeur` (modifie le site), `partenaire` (espace partenaires). `ADMIN_EMAILS` = propriétaires, toujours administrateurs. Access ne fait que vérifier l'identité ; `worker/access.ts` tient le groupe Access à jour depuis la table (si `CF_API_TOKEN`, `CF_ACCOUNT_ID` et `ACCESS_GROUP_ID` sont configurés).
 
 ## Règles
 

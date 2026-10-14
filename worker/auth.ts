@@ -1,34 +1,24 @@
-// Authentification de l'admin : Cloudflare Access devant /admin, et revérification du jeton ici.
-// Un inconnu ne reçoit jamais de code (politique Access) ; même s'il atteignait le Worker, il serait refusé.
+// Authentification de l'admin : Cloudflare Access devant tout le domaine, et revérification du jeton ici.
+// Ce fichier dit seulement *qui* se connecte ; ce qu'il a le droit de faire est dans users.ts (table `users`).
 export interface AuthEnv {
   ACCESS_TEAM_DOMAIN?: string; // ex. "semisto.cloudflareaccess.com"
   ACCESS_AUD?: string; // tag « Application Audience » de l'application Access
-  ADMIN_EMAILS: string; // liste blanche, séparée par des virgules
-  ADMIN_NAMES?: string; // « email=Prénom Nom », séparés par des virgules
   DEV_AUTH_EMAIL?: string; // uniquement en local (wrangler dev), jamais en production
 }
 
-export interface Editor { email: string; name: string }
+/** Nom affichable déduit d'une adresse, quand on ne connaît pas mieux. */
+export const nameFromEmail = (email: string) =>
+  email.split("@")[0].split(/[._-]/).map((w) => w.charAt(0).toUpperCase() + w.slice(1)).join(" ");
 
-const allowed = (env: AuthEnv, email: string) =>
-  env.ADMIN_EMAILS.split(",").map((e) => e.trim().toLowerCase()).filter(Boolean).includes(email.toLowerCase());
-
-export function editorFromEmail(email: string, names = ""): Editor {
-  const known = names.split(",").map((p) => p.split("=")).find(([e]) => e?.trim().toLowerCase() === email.toLowerCase());
-  return { email, name: known?.[1]?.trim() || email.split("@")[0].split(/[._-]/).map((w) => w.charAt(0).toUpperCase() + w.slice(1)).join(" ") };
-}
-
-export async function authenticate(req: Request, env: AuthEnv): Promise<Editor | null> {
+/** Adresse e-mail vérifiée par Access (ou l'identité de dev en local), en minuscules ; null sinon. */
+export async function authenticate(req: Request, env: AuthEnv): Promise<string | null> {
   const url = new URL(req.url);
-  if (env.DEV_AUTH_EMAIL && (url.hostname === "localhost" || url.hostname === "127.0.0.1")) {
-    return allowed(env, env.DEV_AUTH_EMAIL) ? editorFromEmail(env.DEV_AUTH_EMAIL, env.ADMIN_NAMES) : null;
-  }
+  if (env.DEV_AUTH_EMAIL && (url.hostname === "localhost" || url.hostname === "127.0.0.1")) return env.DEV_AUTH_EMAIL.toLowerCase();
   if (!env.ACCESS_TEAM_DOMAIN || !env.ACCESS_AUD) return null;
   const token = req.headers.get("Cf-Access-Jwt-Assertion") ?? cookie(req, "CF_Authorization");
   if (!token) return null;
   const payload = await verifyAccessJwt(token, env.ACCESS_TEAM_DOMAIN, env.ACCESS_AUD);
-  if (!payload?.email || !allowed(env, payload.email)) return null;
-  return editorFromEmail(payload.email, env.ADMIN_NAMES);
+  return payload?.email ? payload.email.toLowerCase() : null;
 }
 
 function cookie(req: Request, name: string): string | null {

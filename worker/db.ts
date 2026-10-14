@@ -1,12 +1,11 @@
 import type Anthropic from "@anthropic-ai/sdk";
 import type { Env } from "./env";
-import type { Editor } from "./auth";
 import type { Author } from "./github";
 
 type MessageParam = Anthropic.Beta.BetaMessageParam;
 
 /** Les commits portent le nom de l'éditeur mais l'adresse du site : le repo est public. */
-export const commitAuthor = (env: Env, editor: Editor): Author => ({ name: editor.name, email: env.COMMIT_EMAIL ?? "bonjour@jardinsdici.org" });
+export const commitAuthor = (env: Env, editor: { name: string }): Author => ({ name: editor.name, email: env.COMMIT_EMAIL ?? "bonjour@jardinsdici.org" });
 
 /** Écrit plusieurs messages d'un coup (transaction) : jamais d'appel d'outil sans son résultat. */
 export async function addMessages(env: Env, id: string, msgs: { role: string; author?: string | null; content: unknown[] }[]) {

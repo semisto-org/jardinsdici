@@ -62,6 +62,43 @@
   .pending { max-width: 760px; margin: 0 auto .5rem; display: flex; gap: .5rem; flex-wrap: wrap; }
   .pending span { display: flex; align-items: center; gap: .3rem; background: #e8ecdc; border-radius: 999px; padding: .2rem .7rem; font-size: .85rem; }
   .typing { align-self: flex-start; color: var(--ink-soft); font-style: italic; }
+  .nav { padding: 0 .6rem .4rem; display: flex; flex-direction: column; gap: .1rem; }
+  .nav a { display: flex; align-items: center; gap: .6rem; padding: .5rem .7rem; border-radius: 10px; color: var(--ink); text-decoration: none; font-weight: 600; }
+  .nav a:hover { background: var(--card); }
+  .nav a.active { background: var(--card); box-shadow: inset 3px 0 0 var(--apple); }
+  .nav a.soon { color: var(--ink-soft); font-weight: 500; pointer-events: none; }
+  .nav a.soon small { margin-left: auto; font-size: .7rem; text-transform: uppercase; letter-spacing: .06em; }
+  .nav hr { border: 0; border-top: 1px solid var(--line); margin: .5rem .4rem; }
+  #siteSide { display: flex; flex-direction: column; min-height: 0; flex: 1; }
+  main[hidden], #siteSide[hidden] { display: none; }
+  .page { flex: 1; overflow-y: auto; padding: 1.5rem 1.4rem 3rem; }
+  .wide { max-width: 980px; margin: 0 auto; display: flex; flex-direction: column; gap: 1.2rem; }
+  .card { background: var(--card); border-radius: 16px; padding: 1.1rem 1.2rem; box-shadow: 0 1px 0 rgb(29 58 42 / .08); }
+  .note { border-radius: 14px; padding: .9rem 1.1rem; background: #e8ecdc; }
+  .note.warn { background: #fff7dc; border: 2px dashed var(--sun); }
+  .note.err { background: #f6dcd4; color: var(--apple); }
+  .note p { margin: .2rem 0 .5rem; }
+  .note code { background: #fff; border-radius: 6px; padding: .1rem .4rem; font-size: .9rem; }
+  .fields { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: .8rem 1rem; }
+  label.f { display: flex; flex-direction: column; gap: .25rem; font-size: .85rem; font-weight: 600; color: var(--ink-soft); }
+  input.in, select.in { font: inherit; padding: .5rem .7rem; border: 2px solid var(--line); border-radius: 10px; background: #fff; color: var(--ink); }
+  input.in:focus, select.in:focus { outline: none; border-color: var(--moss); }
+  .formbar { display: flex; gap: .6rem; justify-content: flex-end; margin-top: 1rem; align-items: center; }
+  .formbar .err { color: var(--apple); margin-right: auto; }
+  table.users { width: 100%; border-collapse: collapse; background: var(--card); border-radius: 16px; overflow: hidden; box-shadow: 0 1px 0 rgb(29 58 42 / .08); }
+  .users th { text-align: left; font-size: .75rem; text-transform: uppercase; letter-spacing: .08em; color: var(--ink-soft); padding: .8rem 1rem; border-bottom: 1px solid var(--line); font-weight: 600; }
+  .users td { padding: .7rem 1rem; border-bottom: 1px solid #efe6d2; vertical-align: middle; }
+  .users tr:last-child td { border-bottom: 0; }
+  .users td b { display: block; font-weight: 600; }
+  .users td small { color: var(--ink-soft); }
+  .users tr.off td { opacity: .55; }
+  .users select.in { padding: .3rem .5rem; font-size: .9rem; }
+  .users .acts { text-align: right; white-space: nowrap; }
+  .users .acts .btn { padding: .3rem .8rem; font-size: .85rem; }
+  .b-admin { background: var(--apple); color: #fff; } .b-editeur { background: var(--sun); color: var(--ink); } .b-partenaire { background: #e8ecdc; color: var(--ink); } .b-off { background: #ddd; color: #555; }
+  .roles { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: .8rem; }
+  .roles div { font-size: .9rem; color: var(--ink-soft); }
+  .roles b { color: var(--ink); display: block; }
   .menu { display: none; }
   @media (max-width: 820px) {
     body { grid-template-columns: 1fr; }
@@ -69,6 +106,7 @@
     body.side aside { transform: none; }
     .menu { display: inline-block; }
     .msg { max-width: 95%; }
+    .users th:nth-child(2), .users td:nth-child(2), .users th:nth-child(4), .users td:nth-child(4) { display: none; }
   }
 </style>
 </head>
@@ -76,12 +114,43 @@
 <aside>
   <div class="brand">Aux Jardins <em>d’ici</em> · admin</div>
   <div class="me" id="me"></div>
-  <button class="new" id="new">＋ Nouvelle conversation</button>
-  <div class="list" id="list"></div>
+  <nav class="nav" id="nav"></nav>
+  <div id="siteSide" hidden>
+    <button class="new" id="new">＋ Nouvelle conversation</button>
+    <div class="list" id="list"></div>
+  </div>
 </aside>
-<main>
+<main id="homeView" hidden>
   <header class="bar">
-    <button class="btn ghost menu" id="menu" aria-label="Conversations">☰</button>
+    <button class="btn ghost menu" data-menu aria-label="Menu">☰</button>
+    <h1>Bienvenue</h1>
+  </header>
+  <div class="page"><div class="wide" id="home"></div></div>
+</main>
+<main id="usersView" hidden>
+  <header class="bar">
+    <button class="btn ghost menu" data-menu aria-label="Menu">☰</button>
+    <h1>Utilisateurs</h1>
+    <span><button class="btn" id="addUser">＋ Ajouter quelqu’un</button></span>
+  </header>
+  <div class="page"><div class="wide">
+    <div id="access"></div>
+    <form class="card" id="userForm" hidden>
+      <div class="fields">
+        <label class="f">Nom<input class="in" name="name" required maxlength="80" autocomplete="off" /></label>
+        <label class="f">Adresse e-mail<input class="in" name="email" type="email" required autocomplete="off" /></label>
+        <label class="f">Structure partenaire<input class="in" name="organisation" maxlength="80" placeholder="facultatif" autocomplete="off" /></label>
+        <label class="f">Rôle<select class="in" name="role"></select></label>
+      </div>
+      <div class="formbar"><span class="err" id="userErr"></span><button type="button" class="btn ghost" id="cancelUser">Annuler</button><button class="btn go" id="saveUser">Enregistrer</button></div>
+    </form>
+    <table class="users"><thead><tr><th>Personne</th><th>Structure</th><th>Rôle</th><th>Dernière visite</th><th></th></tr></thead><tbody id="users"></tbody></table>
+    <div class="roles" id="roles"></div>
+  </div></div>
+</main>
+<main id="siteView" hidden>
+  <header class="bar">
+    <button class="btn ghost menu" data-menu aria-label="Menu">☰</button>
     <h1 id="title">Bienvenue</h1>
     <span id="actions"></span>
   </header>
@@ -291,17 +360,125 @@ async function archive() {
   await openConv(state.current);
 }
 
-$("new").onclick = () => { state.current = null; state.conv = null; state.pending = []; $("pending").innerHTML = ""; history.replaceState(null, "", location.pathname); document.body.classList.remove("side"); render(); loadList(); $("text").focus(); };
-$("menu").onclick = () => document.body.classList.toggle("side");
+function newConv() { state.current = null; state.conv = null; state.pending = []; $("pending").innerHTML = ""; history.replaceState(null, "", location.pathname); }
+$("new").onclick = () => { newConv(); document.body.classList.remove("side"); render(); loadList(); $("text").focus(); };
+for (const b of document.querySelectorAll("[data-menu]")) b.onclick = () => document.body.classList.toggle("side");
+
+// ——— Navigation entre les espaces ———
+const ROLES = {
+  admin: { label: "Administrateur", text: "Gère les utilisateurs, modifie le site et accède à tout l’espace partenaires." },
+  editeur: { label: "Éditeur du site", text: "Modifie le site avec l’assistant et accède à tout l’espace partenaires." },
+  partenaire: { label: "Partenaire", text: "Accède à l’espace partenaires : calendrier, documents, galerie et réunions." },
+};
+const SOON = [["📅", "Calendrier"], ["📄", "Documents"], ["🖼️", "Galerie"], ["🤝", "Réunions"]];
+const currentView = () => (location.hash === "#utilisateurs" && state.me.can.users ? "users" : state.me.can.site ? "site" : "home");
+
+function renderNav(v) {
+  const items = [state.me.can.site ? `<a href="#" data-home class="${v === "site" ? "active" : ""}">🌐 Site web</a>` : `<a href="#" data-home class="${v === "home" ? "active" : ""}">🏡 Accueil</a>`];
+  for (const [icon, label] of SOON) items.push(`<a class="soon" aria-disabled="true">${icon} ${label}<small>bientôt</small></a>`);
+  if (state.me.can.users) items.push("<hr />", `<a href="#utilisateurs" class="${v === "users" ? "active" : ""}">👥 Utilisateurs</a>`);
+  $("nav").innerHTML = items.join("");
+  $("nav").querySelector("[data-home]").onclick = (e) => { e.preventDefault(); newConv(); route(); };
+}
+
+async function route() {
+  const v = currentView();
+  renderNav(v);
+  $("siteView").hidden = v !== "site"; $("usersView").hidden = v !== "users"; $("homeView").hidden = v !== "home";
+  $("siteSide").hidden = v !== "site";
+  document.body.classList.remove("side");
+  if (v === "users") return loadUsers();
+  if (v === "home") return renderHome();
+  await loadList();
+  const id = location.hash.slice(1);
+  if (id && id !== "utilisateurs" && id !== state.current) await openConv(id); else render();
+}
+window.addEventListener("hashchange", () => route().catch((e) => alertInline(e.message)));
+
+function renderHome() {
+  $("home").innerHTML = `<div class="card"><h2 style="font-family:var(--display);font-weight:400;margin:.2rem 0 .6rem">Bonjour ${esc(state.me.name)} 🌱</h2><p>Bienvenue dans l’espace partenaires des Jardins d’ici. Le calendrier, les documents, la galerie photo et l’outil de réunion arrivent ici très bientôt.</p></div>`;
+}
+
+// ——— Utilisateurs (administrateurs) ———
+async function loadUsers(data) {
+  state.users = data || (await api("users"));
+  renderAccess(state.users.access);
+  renderUsers();
+}
+
+function renderAccess(a) {
+  const emails = (a.missing || []).join(", ");
+  const copy = emails ? ` <button type="button" class="btn ghost" data-copy>Copier les adresses</button>` : "";
+  const sync = '<button type="button" class="btn" data-sync>Synchroniser maintenant</button>';
+  $("access").innerHTML = !a.configured
+    ? `<div class="note warn"><b>Cloudflare Access se met encore à jour à la main.</b><p>La synchronisation automatique n’est pas encore branchée : pour qu’une personne reçoive son code de connexion, son adresse doit aussi figurer dans la politique Access de l’admin. Adresses actives :</p><code>${esc(emails)}</code>${copy}</div>`
+    : a.error ? `<div class="note err"><b>La synchronisation avec Cloudflare Access a échoué.</b><p>${esc(a.error)}</p>${sync}</div>`
+    : a.missing?.length ? `<div class="note warn"><b>Ces adresses ne sont pas encore dans Cloudflare Access :</b><p><code>${esc(emails)}</code></p>${sync}</div>`
+    : `<div class="note">✅ Cloudflare Access est à jour : chaque personne active reçoit son code de connexion par e-mail.</div>`;
+  const c = $("access").querySelector("[data-copy]");
+  if (c) c.onclick = () => navigator.clipboard.writeText(emails).then(() => (c.textContent = "Copié ✓"));
+  const sb = $("access").querySelector("[data-sync]");
+  if (sb) sb.onclick = async () => { sb.disabled = true; sb.textContent = "Synchronisation…"; await loadUsers(await api("users/sync", { method: "POST" })).catch((e) => alert(e.message)); };
+}
+
+const roleOptions = (sel) => Object.entries(ROLES).map(([k, r]) => `<option value="${k}" ${k === sel ? "selected" : ""}>${r.label}</option>`).join("");
+
+function renderUsers() {
+  const { users, owners } = state.users;
+  $("users").innerHTML = users.map((u) => {
+    const locked = owners.includes(u.email) || u.email === state.me.email;
+    const role = locked ? `<span class="badge b-${esc(u.role)}" style="margin:0">${ROLES[u.role].label}</span>${owners.includes(u.email) ? "<br /><small>propriétaire</small>" : u.email === state.me.email ? "<br /><small>vous</small>" : ""}`
+      : `<select class="in" data-role="${esc(u.email)}" aria-label="Rôle de ${esc(u.name)}">${roleOptions(u.role)}</select>`;
+    return `<tr class="${u.active ? "" : "off"}"><td><b>${esc(u.name)}${u.active ? "" : ' <span class="badge b-off">désactivé</span>'}</b><small>${esc(u.email)}</small></td><td>${esc(u.organisation || "—")}</td><td>${role}</td><td><small>${u.last_seen_at ? ago(u.last_seen_at) : "jamais venu"}</small></td>`
+      + `<td class="acts"><button class="btn ghost" data-edit="${esc(u.email)}">Modifier</button>${locked ? "" : ` <button class="btn ghost" data-toggle="${esc(u.email)}">${u.active ? "Désactiver" : "Réactiver"}</button>`}</td></tr>`;
+  }).join("");
+  $("roles").innerHTML = Object.values(ROLES).map((r) => `<div><b>${r.label}</b>${r.text}</div>`).join("");
+  for (const s of $("users").querySelectorAll("[data-role]")) s.onchange = () => patchUser(s.dataset.role, { role: s.value });
+  for (const b of $("users").querySelectorAll("[data-edit]")) b.onclick = () => openUserForm(users.find((u) => u.email === b.dataset.edit));
+  for (const b of $("users").querySelectorAll("[data-toggle]")) b.onclick = () => {
+    const u = users.find((x) => x.email === b.dataset.toggle);
+    if (u.active && !confirm(`Désactiver ${u.name} ? Cette personne ne pourra plus se connecter à l’admin.`)) return;
+    patchUser(u.email, { active: !u.active });
+  };
+}
+
+async function patchUser(email, change) {
+  try { await loadUsers(await api(`users/${encodeURIComponent(email)}`, { method: "PATCH", body: JSON.stringify(change) })); }
+  catch (e) { alert(e.message); await loadUsers(); }
+}
+
+function openUserForm(u) {
+  const f = $("userForm");
+  state.editing = u ? u.email : null;
+  f.elements.role.innerHTML = roleOptions(u ? u.role : "partenaire");
+  f.elements.name.value = u?.name || ""; f.elements.email.value = u?.email || ""; f.elements.organisation.value = u?.organisation || "";
+  f.elements.email.disabled = !!u;
+  f.elements.role.disabled = !!u && (state.users.owners.includes(u.email) || u.email === state.me.email);
+  $("userErr").textContent = ""; $("saveUser").textContent = u ? "Enregistrer" : "Ajouter";
+  f.hidden = false; f.elements.name.focus();
+}
+$("addUser").onclick = () => openUserForm(null);
+$("cancelUser").onclick = () => { $("userForm").hidden = true; };
+$("userForm").onsubmit = async (e) => {
+  e.preventDefault();
+  const f = e.target;
+  const body = { name: f.elements.name.value, organisation: f.elements.organisation.value, ...(f.elements.role.disabled ? {} : { role: f.elements.role.value }) };
+  try {
+    const data = state.editing
+      ? await api(`users/${encodeURIComponent(state.editing)}`, { method: "PATCH", body: JSON.stringify(body) })
+      : await api("users", { method: "POST", body: JSON.stringify({ ...body, email: f.elements.email.value }) });
+    f.hidden = true;
+    await loadUsers(data);
+  } catch (err) { $("userErr").textContent = err.message; }
+};
 
 (async () => {
   state.me = await api("me");
   Object.assign(NAMES, state.me.names || {});
-  $("me").textContent = `Connecté·e : ${state.me.email}`;
-  await loadList();
-  const id = location.hash.slice(1);
-  if (id) await openConv(id); else render();
-  setInterval(() => { if (!state.polling) loadList().catch(() => {}); }, 15000);
+  $("me").textContent = `${state.me.name} · ${ROLES[state.me.role]?.label || ""}`;
+  $("me").title = state.me.email;
+  await route();
+  setInterval(() => { if (!state.polling && currentView() === "site") loadList().catch(() => {}); }, 15000);
 })().catch((e) => alertInline(e.message));
 </script>
 </body>
