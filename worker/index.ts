@@ -146,7 +146,7 @@ async function api(req: Request, url: URL, env: Env, editor: Editor): Promise<Re
     if (!(await lock(env, id))) return json({ error: "L'assistant travaille encore sur cette conversation." }, 409);
     try {
       const client = new Anthropic({ apiKey: env.ANTHROPIC_API_KEY });
-      const res = await publishBranch(gh(), client, env.MODEL ?? "claude-opus-5", conv.branch, conv.title, commitAuthor(env, editor));
+      const res = await publishBranch(gh(), client, env.MODEL ?? "claude-opus-5-5", conv.branch, conv.title, commitAuthor(env, editor));
       if (!res.ok) {
         if (res.rebuilt) await touch(env, id, { status: "ouverte", preview_url: null });
         await addMessages(env, id, [

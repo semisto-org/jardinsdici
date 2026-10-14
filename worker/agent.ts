@@ -106,7 +106,7 @@ export class SiteAgent {
 
   constructor(private env: AgentEnv, gh: GitHub, private conv: Conversation, private editor: Author, private emit: (e: AgentEvent) => void, private onStatus: (s: { status: string; preview_url?: string | null; published_sha?: string }) => Promise<void>) {
     this.client = new Anthropic({ apiKey: env.ANTHROPIC_API_KEY });
-    this.model = env.MODEL ?? "claude-opus-5";
+    this.model = env.MODEL ?? "claude-opus-5-5";
     this.gh = gh;
   }
 
