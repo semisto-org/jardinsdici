@@ -5,6 +5,8 @@
   "compatibility_date": "2026-09-01",
   "workers_dev": true,
   "preview_urls": true,
+  // Domaine public : Cloudflare crée l'enregistrement DNS et le certificat au déploiement.
+  "routes": [{ "pattern": "www.jardinsdici.org", "custom_domain": true }],
   "assets": {
     "directory": "./dist",
     "not_found_handling": "404-page",
