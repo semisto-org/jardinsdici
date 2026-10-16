@@ -64,6 +64,8 @@ export function validateContent(path: string, text: string, assets: Set<string>)
       const missing = need.filter((k) => !y?.main?.[k]);
       if (missing.length) problems.push(`textes.yaml doit garder toutes ses sections sous main (manquantes : ${missing.join(", ")}).`);
       if (!y?.main?.accueil?.titre) problems.push("Le grand titre de l'accueil (accueil.titre) ne peut pas être vide.");
+      const photo = y?.main?.accueil?.photo;
+      if (typeof photo !== "string" || !assets.has(resolveRelative(path, photo))) problems.push(`Photo de l'accueil introuvable : ${photo} (accueil.photo). Depuis textes.yaml le chemin commence par ../assets/images/.`);
       const hrefs: unknown[] = [];
       JSON.stringify(y, (k, v) => { if (k === "href") hrefs.push(v); return v; });
       for (const h of hrefs) if (!(typeof h === "string" && /^(\/|https?:\/\/|#)/.test(h))) problems.push(`Lien invalide dans textes.yaml : ${h}`);

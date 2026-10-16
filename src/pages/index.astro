@@ -6,7 +6,6 @@ import EventCard from "../components/EventCard.astro";
 import PageCard from "../components/PageCard.astro";
 import { eventsSplit, childPages } from "../lib/content";
 import { getTextes, inline } from "../lib/textes";
-import hero from "../assets/images/hero-vue-aerienne.jpg";
 
 const site = (await getEntry("site", "main"))!.data;
 const T = (await getTextes()).accueil;
@@ -31,7 +30,7 @@ const fact = facts[new Date().getUTCDate() % facts.length];
         </div>
       </div>
       <figure class="hero-img rise d2">
-        <Image src={hero} alt={T.photo_description} widths={[600, 1000, 1500]} sizes="(max-width: 900px) 100vw, 50vw" loading="eager" fetchpriority="high" />
+        <Image src={T.photo} alt={T.photo_description} widths={[600, 1000, 1500]} sizes="(max-width: 900px) 100vw, 50vw" loading="eager" fetchpriority="high" />
         {T.photo_legende && <figcaption class="hand">{T.photo_legende}</figcaption>}
       </figure>
     </div>
