@@ -116,6 +116,12 @@ export class SiteAgent {
     // Reprise après interruption : si la dernière réponse est déjà finale, il n'y a rien à faire.
     const last = messages[messages.length - 1];
     if (last?.role === "assistant" && Array.isArray(last.content) && !last.content.some((b: any) => b.type === "tool_use")) return;
+    // Une conversation peut rester ouverte longtemps : on part de la dernière version du site (gabarits compris).
+    try {
+      if ((await this.gh.syncWithMain(this.conv.branch)) === "merged") this.lastCommit = await this.gh.headSha(this.conv.branch);
+    } catch (e) {
+      console.warn("Mise à jour de la branche impossible", e);
+    }
     let jsonRetries = 0;
     for (let turn = 0; turn < 40; turn++) {
       const stream = this.client.beta.messages.stream({
