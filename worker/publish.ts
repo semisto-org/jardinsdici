@@ -57,7 +57,8 @@ export async function publishBranch(gh: GitHub, client: Anthropic, model: string
 }
 
 async function mergeText(client: Anthropic, model: string, path: string, base: string, ours: string, theirs: string): Promise<string> {
-  const response = await client.beta.messages.create({
+  // En flux : sans lui, le SDK refuse une requête qui pourrait dépasser 10 minutes (max_tokens élevé).
+  const response = await client.beta.messages.stream({
     model,
     max_tokens: 32000,
     betas: ["server-side-fallback-2026-07-01"],
@@ -68,7 +69,7 @@ async function mergeText(client: Anthropic, model: string, path: string, base: s
       role: "user",
       content: `Fichier : ${path}\n\n=== Version d'origine ===\n${base || "(le fichier n'existait pas)"}\n\n=== Version déjà en ligne (publiée entre-temps par quelqu'un d'autre) ===\n${theirs}\n\n=== Version à publier ===\n${ours}`,
     }],
-  });
+  }).finalMessage();
   if (response.stop_reason !== "end_turn") throw new Error(`Fusion impossible (${response.stop_reason}) pour ${path}`);
   let text = response.content.filter((b) => b.type === "text").map((b) => (b as Anthropic.Beta.BetaTextBlock).text).join("").trim();
   text = text.replace(/^```[a-z]*\n([\s\S]*?)\n```$/i, "$1").trim();

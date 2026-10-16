@@ -103,7 +103,7 @@ const STATUS = { ouverte: "En cours", apercu: "Aperçu prêt", publiee: "En lign
 const NAMES = {};
 const api = async (path, opts = {}) => {
   const res = await fetch(`/api/admin/${path}`, { ...opts, headers: { "X-Admin-Request": "1", ...(opts.body && !(opts.body instanceof Blob) ? { "Content-Type": "application/json" } : {}), ...opts.headers } });
-  if (!res.ok) throw new Error((await res.json().catch(() => ({}))).error || `Erreur ${res.status}`);
+  if (!res.ok) { const body = await res.json().catch(() => ({})); throw Object.assign(new Error(body.error || `Erreur ${res.status}`), { logged: !!body.logged }); }
   return res.json();
 };
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
@@ -282,8 +282,10 @@ $("composer").onsubmit = async (e) => {
 async function publish() {
   const id = state.current; if (!id) return;
   for (const b of document.querySelectorAll("[data-publish]")) { b.disabled = true; b.textContent = "Mise en ligne…"; }
-  try { await api(`conversations/${id}/publish`, { method: "POST" }); } catch (err) { /* la raison est ajoutée à la conversation */ }
+  let failure = null;
+  try { await api(`conversations/${id}/publish`, { method: "POST" }); } catch (err) { if (!err.logged) failure = err.message; } // sinon la raison est déjà dans la conversation
   await openConv(id);
+  if (failure) alertInline(`La publication n'a pas abouti : ${failure}`);
 }
 async function archive() {
   if (!state.current) return;
