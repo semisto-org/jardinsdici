@@ -99,6 +99,32 @@
   .roles { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: .8rem; }
   .roles div { font-size: .9rem; color: var(--ink-soft); }
   .roles b { color: var(--ink); display: block; }
+  .k-reunion { --k: #3b6126; --kbg: #dfe9cf; } .k-gestion { --k: #8a5a12; --kbg: #f8e6bd; } .k-chantier { --k: #b3391f; --kbg: #f6dcd4; } .k-autre { --k: #4b5f50; --kbg: #e6e3da; } .k-public { --k: #1d3a2a; --kbg: #cfe0e8; }
+  .calbar { display: flex; flex-wrap: wrap; align-items: center; gap: .6rem; }
+  .calbar h2 { font-family: var(--display); font-weight: 400; font-size: 1.35rem; margin: 0 auto 0 0; text-transform: capitalize; }
+  .legend { display: flex; flex-wrap: wrap; gap: .4rem .9rem; font-size: .82rem; color: var(--ink-soft); }
+  .legend span::before { content: ""; display: inline-block; width: .7rem; height: .7rem; border-radius: 3px; background: var(--k); margin-right: .35rem; vertical-align: -1px; }
+  .month { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); background: var(--card); border-radius: 16px; overflow: hidden; box-shadow: 0 1px 0 rgb(29 58 42 / .08); }
+  .month .dow { font-size: .72rem; text-transform: uppercase; letter-spacing: .08em; color: var(--ink-soft); padding: .55rem .6rem; border-bottom: 1px solid var(--line); font-weight: 600; }
+  .month .day { min-height: 6.2rem; padding: .35rem .35rem .5rem; border-right: 1px solid #efe6d2; border-bottom: 1px solid #efe6d2; display: flex; flex-direction: column; gap: .2rem; min-width: 0; }
+  .month .day:nth-child(7n) { border-right: 0; }
+  .month .day.out { background: #fbf6ea; } .month .day.out .num { opacity: .4; }
+  .month .num { font-size: .8rem; font-weight: 650; padding: 0 .25rem; align-self: flex-start; border-radius: 999px; }
+  .month .day.today .num { background: var(--apple); color: #fff; padding: 0 .45rem; }
+  .ev { display: block; width: 100%; text-align: left; border: 0; border-left: 3px solid var(--k); background: var(--kbg); color: var(--ink); border-radius: 6px; padding: .12rem .35rem; font-size: .76rem; line-height: 1.3; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .ev:hover { filter: brightness(.96); }
+  .agenda { display: flex; flex-direction: column; gap: .5rem; }
+  .agenda h3 { font-size: .78rem; text-transform: uppercase; letter-spacing: .08em; color: var(--ink-soft); margin: .4rem 0 0; font-weight: 600; }
+  .row-ev { display: flex; gap: .9rem; align-items: center; width: 100%; text-align: left; border: 0; background: var(--card); border-radius: 14px; padding: .7rem 1rem; box-shadow: inset 4px 0 0 var(--k), 0 1px 0 rgb(29 58 42 / .08); color: var(--ink); }
+  .row-ev .d { min-width: 3.2rem; text-align: center; font-family: var(--display); line-height: 1.1; }
+  .row-ev .d b { display: block; font-size: 1.35rem; font-weight: 400; } .row-ev .d small { font-family: var(--font); font-size: .72rem; text-transform: uppercase; color: var(--ink-soft); }
+  .row-ev .t { flex: 1; min-width: 0; } .row-ev .t b { display: block; font-weight: 600; } .row-ev .t small { color: var(--ink-soft); }
+  .tag { display: inline-block; font-size: .7rem; font-weight: 700; padding: .05rem .5rem; border-radius: 999px; background: var(--kbg); color: var(--k); white-space: nowrap; }
+  .detail h2 { font-family: var(--display); font-weight: 400; font-size: 1.4rem; margin: .3rem 0 .4rem; }
+  .detail dl { display: grid; grid-template-columns: max-content 1fr; gap: .3rem 1rem; margin: .6rem 0 0; } .detail dt { color: var(--ink-soft); font-size: .85rem; } .detail dd { margin: 0; }
+  .detail .desc { white-space: pre-wrap; margin: .8rem 0 0; }
+  textarea.in { font: inherit; padding: .5rem .7rem; border: 2px solid var(--line); border-radius: 10px; background: #fff; color: var(--ink); min-height: 5rem; resize: vertical; width: 100%; }
+  textarea.in:focus { outline: none; border-color: var(--moss); }
   .menu { display: none; }
   @media (max-width: 820px) {
     body { grid-template-columns: 1fr; }
@@ -106,6 +132,7 @@
     body.side aside { transform: none; }
     .menu { display: inline-block; }
     .msg { max-width: 95%; }
+    .month .day { min-height: 4.2rem; } .ev { font-size: 0; padding: 0; height: .45rem; border-left-width: 0; background: var(--k); }
     .users th:nth-child(2), .users td:nth-child(2), .users th:nth-child(4), .users td:nth-child(4) { display: none; }
   }
 </style>
@@ -146,6 +173,35 @@
     </form>
     <table class="users"><thead><tr><th>Personne</th><th>Structure</th><th>Rôle</th><th>Dernière visite</th><th></th></tr></thead><tbody id="users"></tbody></table>
     <div class="roles" id="roles"></div>
+  </div></div>
+</main>
+<main id="calView" hidden>
+  <header class="bar">
+    <button class="btn ghost menu" data-menu aria-label="Menu">☰</button>
+    <h1>Calendrier</h1>
+    <span><button class="btn ghost" id="publicEvent" hidden>＋ Activité publique sur le site</button> <button class="btn" id="addEvent">＋ Ajouter un événement</button></span>
+  </header>
+  <div class="page"><div class="wide">
+    <form class="card" id="eventForm" hidden>
+      <div class="fields">
+        <label class="f" style="grid-column: 1 / -1">Titre<input class="in" name="title" required maxlength="120" autocomplete="off" placeholder="Coordination transversale" /></label>
+        <label class="f">Type<select class="in" name="kind"></select></label>
+        <label class="f">Date<input class="in" name="date" type="date" required /></label>
+        <label class="f">Jusqu’au (facultatif)<input class="in" name="end_date" type="date" /></label>
+        <label class="f">De<input class="in" name="start_time" type="time" /></label>
+        <label class="f">À<input class="in" name="end_time" type="time" /></label>
+        <label class="f">Lieu<input class="in" name="location" maxlength="160" placeholder="Aux Jardins d’ici, Naninne" autocomplete="off" /></label>
+        <label class="f">Lien de visio<input class="in" name="visio_url" type="url" placeholder="https://zoom.us/j/…" autocomplete="off" /></label>
+        <label class="f" style="grid-column: 1 / -1">Description<textarea class="in" name="description" maxlength="4000" placeholder="Ordre du jour, qui prépare, matériel à prévoir…"></textarea></label>
+      </div>
+      <div class="formbar"><span class="err" id="eventErr"></span><button type="button" class="btn ghost" id="cancelEvent">Annuler</button><button class="btn go" id="saveEvent">Enregistrer</button></div>
+    </form>
+    <div class="card detail" id="eventDetail" hidden></div>
+    <div id="publicNote"></div>
+    <div class="calbar"><h2 id="monthTitle"></h2><button class="btn ghost" id="prevMonth" aria-label="Mois précédent">‹</button><button class="btn ghost" id="todayMonth">Aujourd’hui</button><button class="btn ghost" id="nextMonth" aria-label="Mois suivant">›</button></div>
+    <div class="legend" id="legend"></div>
+    <div class="month" id="month"></div>
+    <div class="agenda" id="agenda"></div>
   </div></div>
 </main>
 <main id="siteView" hidden>
@@ -372,11 +428,13 @@ const ROLES = {
   editeur: { label: "Éditeur du site", text: "Modifie le site avec l’assistant et accède à tout l’espace partenaires." },
   partenaire: { label: "Partenaire", text: "Accède à l’espace partenaires : calendrier, documents, galerie et réunions." },
 };
-const SOON = [["📅", "Calendrier"], ["📄", "Documents"], ["🖼️", "Galerie"], ["🤝", "Réunions"]];
-const currentView = () => (location.hash === "#utilisateurs" && state.me.can.users ? "users" : state.me.can.site ? "site" : "home");
+const SOON = [["📄", "Documents"], ["🖼️", "Galerie"], ["🤝", "Réunions"]];
+const VIEWS = { "#utilisateurs": "users", "#calendrier": "cal" };
+const currentView = () => { const v = VIEWS[location.hash]; return v === "cal" || (v === "users" && state.me.can.users) ? v : state.me.can.site ? "site" : "home"; };
 
 function renderNav(v) {
   const items = [state.me.can.site ? `<a href="#" data-home class="${v === "site" ? "active" : ""}">🌐 Site web</a>` : `<a href="#" data-home class="${v === "home" ? "active" : ""}">🏡 Accueil</a>`];
+  items.push(`<a href="#calendrier" class="${v === "cal" ? "active" : ""}">📅 Calendrier</a>`);
   for (const [icon, label] of SOON) items.push(`<a class="soon" aria-disabled="true">${icon} ${label}<small>bientôt</small></a>`);
   if (state.me.can.users) items.push("<hr />", `<a href="#utilisateurs" class="${v === "users" ? "active" : ""}">👥 Utilisateurs</a>`);
   $("nav").innerHTML = items.join("");
@@ -386,20 +444,131 @@ function renderNav(v) {
 async function route() {
   const v = currentView();
   renderNav(v);
-  $("siteView").hidden = v !== "site"; $("usersView").hidden = v !== "users"; $("homeView").hidden = v !== "home";
+  $("siteView").hidden = v !== "site"; $("usersView").hidden = v !== "users"; $("homeView").hidden = v !== "home"; $("calView").hidden = v !== "cal";
   $("siteSide").hidden = v !== "site";
   document.body.classList.remove("side");
   if (v === "users") return loadUsers();
+  if (v === "cal") return loadCal();
   if (v === "home") return renderHome();
   await loadList();
   const id = location.hash.slice(1);
-  if (id && id !== "utilisateurs" && id !== state.current) await openConv(id); else render();
+  if (id && !VIEWS[location.hash] && id !== state.current) await openConv(id); else render();
 }
 window.addEventListener("hashchange", () => route().catch((e) => alertInline(e.message)));
 
-function renderHome() {
-  $("home").innerHTML = `<div class="card"><h2 style="font-family:var(--display);font-weight:400;margin:.2rem 0 .6rem">Bonjour ${esc(state.me.name)} 🌱</h2><p>Bienvenue dans l’espace partenaires des Jardins d’ici. Le calendrier, les documents, la galerie photo et l’outil de réunion arrivent ici très bientôt.</p></div>`;
+async function renderHome() {
+  $("home").innerHTML = `<div class="card"><h2 style="font-family:var(--display);font-weight:400;margin:.2rem 0 .6rem">Bonjour ${esc(state.me.name)} 🌱</h2><p>Bienvenue dans l’espace partenaires des Jardins d’ici. Le calendrier est prêt ; les documents, la galerie photo et l’outil de réunion arrivent ici très bientôt.</p></div><div class="agenda" id="homeAgenda"></div>`;
+  const data = await api("events");
+  const next = allItems(data).filter((i) => i.end >= todayIso()).slice(0, 5);
+  $("homeAgenda").innerHTML = `<h3>Prochainement</h3>${next.map(rowHtml).join("") || "<p>Rien de prévu pour l’instant.</p>"}<p><a href="#calendrier">Voir tout le calendrier →</a></p>`;
+  for (const b of $("homeAgenda").querySelectorAll("[data-ev]")) b.onclick = () => { state.openEv = b.dataset.ev; location.hash = "#calendrier"; };
 }
+
+// ——— Calendrier ———
+const KINDS = { reunion: "Réunion", gestion: "Gestion", chantier: "Chantier", autre: "Autre", public: "Activité publique" };
+const pad = (n) => String(n).padStart(2, "0");
+const isoOf = (d) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+const todayIso = () => isoOf(new Date());
+const dateOf = (iso) => { const [y, m, d] = iso.split("-").map(Number); return new Date(y, m - 1, d); };
+const longDate = (iso) => dateOf(iso).toLocaleDateString("fr-BE", { weekday: "long", day: "numeric", month: "long", year: "numeric" });
+const hours = (e) => e.start_time ? e.start_time.replace(":", "h") + (e.end_time ? ` – ${e.end_time.replace(":", "h")}` : "") : "";
+
+/** Événements internes et activités publiques du site, dans un même format, triés par date. */
+function allItems(data) {
+  const own = data.events.map((e) => ({ key: `e:${e.id}`, kind: e.kind, title: e.title, start: e.date, end: e.end_date || e.date, when: hours(e), raw: e }));
+  const pub = data.public.map((e) => ({ key: `p:${e.id}`, kind: "public", title: e.title, start: e.date, end: e.endDate || e.date, when: e.time || "", raw: e }));
+  return [...own, ...pub].sort((a, b) => a.start.localeCompare(b.start) || (a.when || "").localeCompare(b.when || ""));
+}
+
+function rowHtml(i) {
+  const d = dateOf(i.start);
+  const sub = [i.start !== i.end ? `jusqu’au ${dateOf(i.end).toLocaleDateString("fr-BE", { day: "numeric", month: "long" })}` : "", i.when, i.raw.location].filter(Boolean).join(" · ");
+  return `<button class="row-ev k-${i.kind}" data-ev="${esc(i.key)}"><span class="d"><b>${d.getDate()}</b><small>${d.toLocaleDateString("fr-BE", { month: "short" }).replace(".", "")}</small></span><span class="t"><b>${esc(i.title)}</b><small>${esc(sub)}</small></span><span class="tag">${KINDS[i.kind]}</span></button>`;
+}
+
+async function loadCal(data) {
+  state.cal = data || (await api("events"));
+  state.month ??= (() => { const t = new Date(); return new Date(t.getFullYear(), t.getMonth(), 1); })();
+  $("publicEvent").hidden = !state.me.can.site;
+  $("legend").innerHTML = Object.entries(KINDS).map(([k, l]) => `<span class="k-${k}">${l}</span>`).join("");
+  $("publicNote").innerHTML = state.cal.publicError ? `<div class="note warn">Les activités publiques du site n’ont pas pu être chargées (${esc(state.cal.publicError)}).</div>` : "";
+  renderCal();
+  if (state.openEv) { showEvent(state.openEv); state.openEv = null; }
+}
+
+function renderCal() {
+  const items = allItems(state.cal);
+  const m = state.month;
+  $("monthTitle").textContent = m.toLocaleDateString("fr-BE", { month: "long", year: "numeric" });
+  const first = new Date(m.getFullYear(), m.getMonth(), 1 - ((m.getDay() + 6) % 7));
+  const cells = ["lun", "mar", "mer", "jeu", "ven", "sam", "dim"].map((d) => `<div class="dow">${d}</div>`);
+  for (let i = 0; i < 42; i++) {
+    const d = new Date(first.getFullYear(), first.getMonth(), first.getDate() + i);
+    if (i === 35 && d.getMonth() !== m.getMonth()) break;
+    const iso = isoOf(d);
+    const evs = items.filter((x) => x.start <= iso && x.end >= iso);
+    cells.push(`<div class="day ${d.getMonth() !== m.getMonth() ? "out" : ""} ${iso === todayIso() ? "today" : ""}"><span class="num">${d.getDate()}</span>${evs.map((x) => `<button class="ev k-${x.kind}" data-ev="${esc(x.key)}" title="${esc(x.title)}">${x.when && x.start === iso ? esc(x.when.split(" ")[0]) + " " : ""}${esc(x.title)}</button>`).join("")}</div>`);
+  }
+  $("month").innerHTML = cells.join("");
+  const today = todayIso();
+  const upcoming = items.filter((x) => x.end >= today).slice(0, 12);
+  $("agenda").innerHTML = `<h3>À venir</h3>${upcoming.map(rowHtml).join("") || "<p>Rien de prévu pour l’instant.</p>"}`;
+  for (const b of document.querySelectorAll("#calView [data-ev]")) b.onclick = () => showEvent(b.dataset.ev);
+}
+
+function showEvent(key) {
+  const i = allItems(state.cal).find((x) => x.key === key);
+  if (!i) return;
+  const e = i.raw, box = $("eventDetail");
+  const when = longDate(i.start) + (i.start !== i.end ? ` → ${longDate(i.end)}` : "") + (i.when ? ` · ${i.when}` : "");
+  const mine = i.kind !== "public" && (state.me.role !== "partenaire" || e.created_by === state.me.email);
+  const rows = i.kind === "public"
+    ? [["Où le voir", `<a href="${esc(e.url)}" target="_blank" rel="noopener">Page de l’activité sur le site ↗</a>`]]
+    : [["Lieu", esc(e.location || "")], ["Visio", e.visio_url ? `<a href="${esc(e.visio_url)}" target="_blank" rel="noopener">Rejoindre la visio ↗</a>` : ""], ["Ajouté par", esc(nameOf(e.created_by))]];
+  box.innerHTML = `<span class="tag k-${i.kind}">${KINDS[i.kind]}</span><h2>${esc(i.title)}</h2><div>${esc(when)}</div>`
+    + `<dl>${rows.filter((r) => r[1]).map(([k, v]) => `<dt>${k}</dt><dd>${v}</dd>`).join("")}</dl>`
+    + (e.description || e.summary ? `<p class="desc">${rich(e.description || e.summary)}</p>` : "")
+    + `<div class="formbar">${mine ? '<button class="btn ghost" data-del>Supprimer</button><button class="btn ghost" data-edit>Modifier</button>' : ""}<button class="btn" data-close>Fermer</button></div>`;
+  box.hidden = false; $("eventForm").hidden = true;
+  box.querySelector("[data-close]").onclick = () => { box.hidden = true; };
+  if (mine) {
+    box.querySelector("[data-edit]").onclick = () => openEventForm(e);
+    box.querySelector("[data-del]").onclick = async () => {
+      if (!confirm(`Supprimer « ${e.title} » du calendrier ?`)) return;
+      try { box.hidden = true; await loadCal(await api(`events/${e.id}`, { method: "DELETE" })); } catch (err) { alert(err.message); }
+    };
+  }
+  box.scrollIntoView({ behavior: "smooth", block: "nearest" });
+}
+
+function openEventForm(e, date) {
+  const f = $("eventForm");
+  state.editingEv = e ? e.id : null;
+  f.elements.kind.innerHTML = Object.entries(KINDS).filter(([k]) => k !== "public").map(([k, l]) => `<option value="${k}" ${k === (e?.kind || "reunion") ? "selected" : ""}>${l}</option>`).join("");
+  for (const n of ["title", "end_date", "start_time", "end_time", "location", "visio_url", "description"]) f.elements[n].value = e?.[n] || "";
+  f.elements.date.value = e?.date || date || todayIso();
+  $("eventErr").textContent = ""; $("saveEvent").textContent = e ? "Enregistrer" : "Ajouter";
+  f.hidden = false; $("eventDetail").hidden = true; f.elements.title.focus();
+}
+$("addEvent").onclick = () => openEventForm(null);
+$("cancelEvent").onclick = () => { $("eventForm").hidden = true; };
+$("eventForm").onsubmit = async (ev) => {
+  ev.preventDefault();
+  const f = ev.target;
+  const body = Object.fromEntries(["title", "kind", "date", "end_date", "start_time", "end_time", "location", "visio_url", "description"].map((n) => [n, f.elements[n].value]));
+  try {
+    const data = state.editingEv ? await api(`events/${state.editingEv}`, { method: "PATCH", body: JSON.stringify(body) }) : await api("events", { method: "POST", body: JSON.stringify(body) });
+    f.hidden = true;
+    state.month = new Date(dateOf(body.date).getFullYear(), dateOf(body.date).getMonth(), 1);
+    await loadCal(data);
+  } catch (err) { $("eventErr").textContent = err.message; }
+};
+const shiftMonth = (n) => { state.month = new Date(state.month.getFullYear(), state.month.getMonth() + n, 1); renderCal(); };
+$("prevMonth").onclick = () => shiftMonth(-1);
+$("nextMonth").onclick = () => shiftMonth(1);
+$("todayMonth").onclick = () => { const t = new Date(); state.month = new Date(t.getFullYear(), t.getMonth(), 1); renderCal(); };
+// Les activités publiques vivent dans l’agenda du site : on passe par l’assistant, qui prépare un aperçu avant publication.
+$("publicEvent").onclick = () => { history.replaceState(null, "", location.pathname); newConv(); route().then(() => { $("text").value = "Ajoute une activité à l’agenda du site : "; $("text").focus(); }); };
 
 // ——— Utilisateurs (administrateurs) ———
 async function loadUsers(data) {
