@@ -28,6 +28,8 @@ Tout le contenu éditorial est en Markdown dans `src/content/`, un fichier par �
 
 Utilisateurs et droits : table D1 `users` (`worker/users.ts`), gérée depuis l'écran « Utilisateurs ». Rôles : `admin` (gère les utilisateurs), `editeur` (modifie le site), `partenaire` (espace partenaires). `ADMIN_EMAILS` = propriétaires, toujours administrateurs. Access ne fait que vérifier l'identité ; `worker/access.ts` tient le groupe Access à jour depuis la table (si `CF_API_TOKEN`, `CF_ACCOUNT_ID` et `ACCESS_GROUP_ID` sont configurés).
 
+Calendrier : événements internes (réunions, gestion, chantiers) dans la table D1 `events` (`worker/calendar.ts`), modifiables par leur auteur, les éditeurs et les administrateurs. Les activités publiques restent dans `src/content/events/` ; l'admin les lit sur le site via `/agenda.json` (`src/pages/agenda.json.ts`) et passe par l'assistant pour en publier une.
+
 ## Règles
 
 - bun uniquement, jamais npm/npx.

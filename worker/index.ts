@@ -5,6 +5,7 @@ import adminPage from "./admin.html";
 import { authenticate } from "./auth";
 import { resolveUser, listUsers, can, cleanInput, checkChange, owners, type User } from "./users";
 import { accessStatus, syncAccess } from "./access";
+import { cleanEvent, canEdit, listEvents, publicEvents, type CalEvent } from "./calendar";
 import { GitHub } from "./github";
 import { branchFor } from "./agent";
 import { publishBranch } from "./publish";
@@ -62,6 +63,7 @@ async function api(req: Request, url: URL, env: Env, editor: User): Promise<Resp
   }
 
   if (parts[0] === "users") return usersApi(req, parts, env, editor);
+  if (parts[0] === "events") return eventsApi(req, parts, env, editor);
 
   if (!can(editor, "site")) return json({ error: "Modifier le site est réservé aux éditeurs." }, 403);
 
@@ -228,5 +230,41 @@ async function usersApi(req: Request, parts: string[], env: Env, editor: User): 
     return withState(input.active !== undefined ? await syncAccess(env) : undefined);
   }
 
+  return json({ error: "Introuvable" }, 404);
+}
+
+async function eventsApi(req: Request, parts: string[], env: Env, editor: User): Promise<Response> {
+  const withAll = async (status = 200) => {
+    const pub = await publicEvents(env);
+    return json({ events: await listEvents(env), public: pub.events, publicError: pub.error ?? null }, status);
+  };
+
+  if (parts.length === 1 && req.method === "GET") return withAll();
+
+  if (parts.length === 1 && req.method === "POST") {
+    const input = cleanEvent(await req.json(), true);
+    if ("error" in input) return json(input, 400);
+    const id = crypto.randomUUID().replace(/-/g, "").slice(0, 12);
+    const now = Date.now();
+    await env.DB.prepare(`INSERT INTO events (id, title, kind, date, end_date, start_time, end_time, location, visio_url, description, created_by, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`)
+      .bind(id, input.title, input.kind, input.date, input.end_date ?? null, input.start_time ?? null, input.end_time ?? null, input.location ?? null, input.visio_url ?? null, input.description ?? null, editor.email, now, now).run();
+    return withAll(201);
+  }
+
+  const ev = parts[1] ? await env.DB.prepare(`SELECT * FROM events WHERE id = ?`).bind(parts[1]).first<CalEvent>() : null;
+  if (!ev || parts.length !== 2) return json({ error: "Événement introuvable." }, 404);
+  if (!canEdit(editor, ev)) return json({ error: "Seule la personne qui a créé cet événement (ou un éditeur) peut le modifier." }, 403);
+
+  if (req.method === "PATCH") {
+    const input = cleanEvent(await req.json(), false, ev);
+    if ("error" in input) return json(input, 400);
+    const keys = Object.keys(input) as (keyof typeof input)[];
+    if (keys.length) await env.DB.prepare(`UPDATE events SET ${keys.map((k) => `${k} = ?`).join(", ")}, updated_at = ? WHERE id = ?`).bind(...keys.map((k) => input[k] ?? null), Date.now(), ev.id).run();
+    return withAll();
+  }
+  if (req.method === "DELETE") {
+    await env.DB.prepare(`DELETE FROM events WHERE id = ?`).bind(ev.id).run();
+    return withAll();
+  }
   return json({ error: "Introuvable" }, 404);
 }
