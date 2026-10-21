@@ -20,8 +20,10 @@ main:
     titre: "Redonner de l’espace *au vivant*, à deux pas de la N4."
     bouton_principal: { label: "Découvrir les espaces", href: "/espaces" }
     bouton_secondaire: { label: "Voir l’agenda", href: "/agenda" }
-    photo_description: "Vue aérienne des Jardins d’ici : la forêt nourricière, les massifs et le parking du magasin d’ici"
-    photo_legende: "les jardins vus du ciel, septembre 2026 ↗"
+    # Photo principale de l'accueil : une image de src/assets/images/, en chemin relatif depuis ce fichier.
+    photo: "../assets/images/dji-0653-8b11c8.jpg"
+    photo_description: "Vue aérienne des Jardins d’ici : le potager, la serre, la mare, les structures en saule et la forêt nourricière"
+    photo_legende: "les jardins vus du ciel ↗"
     chiffres_titre: "Les jardins en quelques chiffres"
     rendezvous_titre: "Prochains rendez-vous à ne pas rater"
     rendezvous_titre_sans_date: "Derniers rendez-vous"

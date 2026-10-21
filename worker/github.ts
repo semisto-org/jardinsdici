@@ -43,6 +43,14 @@ export class GitHub {
     await this.api(`/git/refs`, { method: "POST", body: JSON.stringify({ ref: `refs/heads/${branch}`, sha: main }) });
   }
 
+  /** Ramène la dernière version de main dans la branche, pour que l'aperçu parte du site actuel.
+   *  Sans effet si la branche n'existe pas ou est à jour ; en cas de conflit, la publication s'en charge. */
+  async syncWithMain(branch: string): Promise<"merged" | "uptodate" | "conflict" | "absent"> {
+    if (!(await this.headSha(branch))) return "absent";
+    const r = await this.api(`/merges`, { method: "POST", body: JSON.stringify({ base: branch, head: "main", commit_message: "Mise à jour avec la dernière version du site" }) }, [204, 409]);
+    return r.status === 204 ? "uptodate" : r.status === 409 ? "conflict" : "merged";
+  }
+
   async resetBranchTo(branch: string, sha: string): Promise<void> {
     await this.api(`/git/refs/heads/${branch}`, { method: "PATCH", body: JSON.stringify({ sha, force: true }) });
   }

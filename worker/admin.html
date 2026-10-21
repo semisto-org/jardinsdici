@@ -172,12 +172,12 @@ const STATUS = { ouverte: "En cours", apercu: "Aperçu prêt", publiee: "En lign
 const NAMES = {};
 const api = async (path, opts = {}) => {
   const res = await fetch(`/api/admin/${path}`, { ...opts, headers: { "X-Admin-Request": "1", ...(opts.body && !(opts.body instanceof Blob) ? { "Content-Type": "application/json" } : {}), ...opts.headers } });
-  if (!res.ok) throw new Error((await res.json().catch(() => ({}))).error || `Erreur ${res.status}`);
+  if (!res.ok) { const body = await res.json().catch(() => ({})); throw Object.assign(new Error(body.error || `Erreur ${res.status}`), { logged: !!body.logged }); }
   return res.json();
 };
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
-const rich = (s) => esc(s).replace(/\*\*([^*]+)\*\*/g, "<b>$1</b>").replace(/\[([^\]]+)\]\((https?:\/\/[^)\s]+)\)/g, '<a href="$2" target="_blank" rel="noopener">$1</a>').replace(/(^|[\s(])(https?:\/\/[^\s)<]+)/g, '$1<a href="$2" target="_blank" rel="noopener">$2</a>');
+const rich = (s) => esc(s).replace(/\*\*([^*]+)\*\*/g, "<b>$1</b>").replace(/\[([^\]]+)\]\((https?:\/\/[^)\s]+)\)/g, '<a href="$2" target="_blank" rel="noopener">$1</a>').replace(/(^|[\s(])(https?:\/\/[^\s)<]*[^\s)<.,;:!?])/g, '$1<a href="$2" target="_blank" rel="noopener">$2</a>');
 const nameOf = (email) => email ? NAMES[email] || email.split("@")[0] : "";
 const ago = (t) => { const m = Math.round((Date.now() - t) / 60000); return m < 1 ? "à l’instant" : m < 60 ? `il y a ${m} min` : m < 1440 ? `il y a ${Math.round(m / 60)} h` : new Date(t).toLocaleDateString("fr-BE", { day: "numeric", month: "short" }); };
 const PHOTO = /\[Photo jointe, déjà ajoutée au site : (src\/assets\/images\/[a-z0-9-]+\.jpg)\]/g;
@@ -351,8 +351,10 @@ $("composer").onsubmit = async (e) => {
 async function publish() {
   const id = state.current; if (!id) return;
   for (const b of document.querySelectorAll("[data-publish]")) { b.disabled = true; b.textContent = "Mise en ligne…"; }
-  try { await api(`conversations/${id}/publish`, { method: "POST" }); } catch (err) { /* la raison est ajoutée à la conversation */ }
+  let failure = null;
+  try { await api(`conversations/${id}/publish`, { method: "POST" }); } catch (err) { if (!err.logged) failure = err.message; } // sinon la raison est déjà dans la conversation
   await openConv(id);
+  if (failure) alertInline(`La publication n'a pas abouti : ${failure}`);
 }
 async function archive() {
   if (!state.current) return;

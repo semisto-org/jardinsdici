@@ -154,18 +154,27 @@ async function api(req: Request, url: URL, env: Env, editor: User): Promise<Resp
     if (!(await lock(env, id))) return json({ error: "L'assistant travaille encore sur cette conversation." }, 409);
     try {
       const client = new Anthropic({ apiKey: env.ANTHROPIC_API_KEY });
-      const res = await publishBranch(gh(), client, env.MODEL ?? "claude-opus-5-5", conv.branch, conv.title, commitAuthor(env, editor));
+      const clicked = { role: "user", author: editor.email, content: [{ type: "text", text: `[${editor.name} a cliqué sur « Publier »]` }] };
+      let res;
+      try {
+        res = await publishBranch(gh(), client, env.MODEL ?? "claude-opus-5-5", conv.branch, conv.title, commitAuthor(env, editor));
+      } catch (e) {
+        console.error(e);
+        const reason = `La publication n'a pas abouti, rien n'a été mis en ligne (erreur technique : ${(e as Error).message}). Réessayez dans un instant ; si ça se reproduit, prévenez Michael.`;
+        await addMessages(env, id, [clicked, { role: "assistant", content: [{ type: "text", text: reason }] }]);
+        return json({ error: reason, logged: true }, 500);
+      }
       if (!res.ok) {
         if (res.rebuilt) await touch(env, id, { status: "ouverte", preview_url: null });
         await addMessages(env, id, [
-          { role: "user", author: editor.email, content: [{ type: "text", text: `[${editor.name} a cliqué sur « Publier »]` }] },
+          clicked,
           { role: "assistant", content: [{ type: "text", text: res.reason + (res.rebuilt ? " Écrivez-moi « publie » et je m'en occupe dès que l'aperçu est prêt." : "") }] },
         ]);
-        return json({ error: res.reason, rebuilt: !!res.rebuilt }, 409);
+        return json({ error: res.reason, rebuilt: !!res.rebuilt, logged: true }, 409);
       }
       await touch(env, id, { status: "publiee", published_sha: res.sha });
       await addMessages(env, id, [
-        { role: "user", author: editor.email, content: [{ type: "text", text: `[${editor.name} a cliqué sur « Publier »]` }] },
+        clicked,
         { role: "assistant", content: [{ type: "text", text: `C'est parti ✅ Le site sera à jour d'ici une à deux minutes : ${env.SITE_URL}` }] },
       ]);
       return json({ ok: true, sha: res.sha });
