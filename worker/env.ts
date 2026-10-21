@@ -5,6 +5,7 @@ import type { ConversationRunner } from "./runner";
 
 export interface Env extends AuthEnv, AccessEnv, AgentEnv {
   DB: D1Database;
+  FILES: R2Bucket; // documents (et bientôt photos) de l'espace partenaires
   RUNNER: DurableObjectNamespace<ConversationRunner>;
   GITHUB_TOKEN: string;
   GITHUB_REPO: string;

@@ -125,6 +125,22 @@
   .detail .desc { white-space: pre-wrap; margin: .8rem 0 0; }
   textarea.in { font: inherit; padding: .5rem .7rem; border: 2px solid var(--line); border-radius: 10px; background: #fff; color: var(--ink); min-height: 5rem; resize: vertical; width: 100%; }
   textarea.in:focus { outline: none; border-color: var(--moss); }
+  .docbar { display: flex; flex-wrap: wrap; gap: .6rem; align-items: center; }
+  .docbar input[type=search] { flex: 1; min-width: 14rem; }
+  .drop { border: 2px dashed var(--line); border-radius: 16px; padding: 1.1rem; text-align: center; color: var(--ink-soft); background: var(--card); }
+  .drop.over { border-color: var(--moss); background: #eef3e2; color: var(--ink); }
+  .drop .uploads { display: flex; flex-direction: column; gap: .3rem; margin-top: .6rem; text-align: left; font-size: .9rem; }
+  .folder h3 { font-family: var(--display); font-weight: 400; font-size: 1.15rem; margin: .4rem 0 .5rem; display: flex; align-items: baseline; gap: .5rem; }
+  .folder h3 small { font-family: var(--font); font-size: .8rem; color: var(--ink-soft); }
+  .docs { background: var(--card); border-radius: 16px; box-shadow: 0 1px 0 rgb(29 58 42 / .08); overflow: hidden; }
+  .doc { display: flex; align-items: center; gap: .9rem; padding: .7rem 1rem; border-bottom: 1px solid #efe6d2; }
+  .doc:last-child { border-bottom: 0; }
+  .doc .ico { font-size: 1.5rem; width: 2rem; text-align: center; }
+  .doc .t { flex: 1; min-width: 0; } .doc .t a { font-weight: 600; color: var(--ink); text-decoration: none; } .doc .t a:hover { text-decoration: underline; }
+  .doc .t small { display: block; color: var(--ink-soft); }
+  .doc .t q { display: block; font-size: .85rem; color: var(--ink-soft); font-style: italic; margin-top: .2rem; } .doc .t mark { background: #fbe7a6; color: var(--ink); }
+  .doc .acts { white-space: nowrap; } .doc .acts .btn { padding: .3rem .8rem; font-size: .85rem; }
+  .doc form { display: flex; flex-wrap: wrap; gap: .5rem; flex: 1; align-items: center; } .doc form .in { padding: .35rem .6rem; }
   .menu { display: none; }
   @media (max-width: 820px) {
     body { grid-template-columns: 1fr; }
@@ -202,6 +218,22 @@
     <div class="legend" id="legend"></div>
     <div class="month" id="month"></div>
     <div class="agenda" id="agenda"></div>
+  </div></div>
+</main>
+<main id="docsView" hidden>
+  <header class="bar">
+    <button class="btn ghost menu" data-menu aria-label="Menu">☰</button>
+    <h1>Documents</h1>
+    <span><button class="btn" id="addDocs">＋ Déposer des fichiers</button></span>
+  </header>
+  <div class="page"><div class="wide">
+    <div class="docbar">
+      <input class="in" type="search" id="docSearch" placeholder="Rechercher un document, ou un mot dans les PV…" aria-label="Rechercher" />
+      <label class="f" style="flex-direction:row;align-items:center;gap:.5rem">Déposer dans<select class="in" id="docFolder"></select></label>
+    </div>
+    <div class="drop" id="drop">Glissez des fichiers ici (PV, PDF, plans, tableaux… 50 Mo maximum par fichier), ou utilisez « Déposer des fichiers ».<div class="uploads" id="uploads"></div></div>
+    <input type="file" id="docFiles" multiple hidden />
+    <div id="docList"></div>
   </div></div>
 </main>
 <main id="siteView" hidden>
@@ -428,13 +460,13 @@ const ROLES = {
   editeur: { label: "Éditeur du site", text: "Modifie le site avec l’assistant et accède à tout l’espace partenaires." },
   partenaire: { label: "Partenaire", text: "Accède à l’espace partenaires : calendrier, documents, galerie et réunions." },
 };
-const SOON = [["📄", "Documents"], ["🖼️", "Galerie"], ["🤝", "Réunions"]];
-const VIEWS = { "#utilisateurs": "users", "#calendrier": "cal" };
-const currentView = () => { const v = VIEWS[location.hash]; return v === "cal" || (v === "users" && state.me.can.users) ? v : state.me.can.site ? "site" : "home"; };
+const SOON = [["🖼️", "Galerie"], ["🤝", "Réunions"]];
+const VIEWS = { "#utilisateurs": "users", "#calendrier": "cal", "#documents": "docs" };
+const currentView = () => { const v = VIEWS[location.hash]; return v === "cal" || v === "docs" || (v === "users" && state.me.can.users) ? v : state.me.can.site ? "site" : "home"; };
 
 function renderNav(v) {
   const items = [state.me.can.site ? `<a href="#" data-home class="${v === "site" ? "active" : ""}">🌐 Site web</a>` : `<a href="#" data-home class="${v === "home" ? "active" : ""}">🏡 Accueil</a>`];
-  items.push(`<a href="#calendrier" class="${v === "cal" ? "active" : ""}">📅 Calendrier</a>`);
+  items.push(`<a href="#calendrier" class="${v === "cal" ? "active" : ""}">📅 Calendrier</a>`, `<a href="#documents" class="${v === "docs" ? "active" : ""}">📄 Documents</a>`);
   for (const [icon, label] of SOON) items.push(`<a class="soon" aria-disabled="true">${icon} ${label}<small>bientôt</small></a>`);
   if (state.me.can.users) items.push("<hr />", `<a href="#utilisateurs" class="${v === "users" ? "active" : ""}">👥 Utilisateurs</a>`);
   $("nav").innerHTML = items.join("");
@@ -444,11 +476,12 @@ function renderNav(v) {
 async function route() {
   const v = currentView();
   renderNav(v);
-  $("siteView").hidden = v !== "site"; $("usersView").hidden = v !== "users"; $("homeView").hidden = v !== "home"; $("calView").hidden = v !== "cal";
+  $("siteView").hidden = v !== "site"; $("usersView").hidden = v !== "users"; $("homeView").hidden = v !== "home"; $("calView").hidden = v !== "cal"; $("docsView").hidden = v !== "docs";
   $("siteSide").hidden = v !== "site";
   document.body.classList.remove("side");
   if (v === "users") return loadUsers();
   if (v === "cal") return loadCal();
+  if (v === "docs") return loadDocs();
   if (v === "home") return renderHome();
   await loadList();
   const id = location.hash.slice(1);
@@ -457,7 +490,7 @@ async function route() {
 window.addEventListener("hashchange", () => route().catch((e) => alertInline(e.message)));
 
 async function renderHome() {
-  $("home").innerHTML = `<div class="card"><h2 style="font-family:var(--display);font-weight:400;margin:.2rem 0 .6rem">Bonjour ${esc(state.me.name)} 🌱</h2><p>Bienvenue dans l’espace partenaires des Jardins d’ici. Le calendrier est prêt ; les documents, la galerie photo et l’outil de réunion arrivent ici très bientôt.</p></div><div class="agenda" id="homeAgenda"></div>`;
+  $("home").innerHTML = `<div class="card"><h2 style="font-family:var(--display);font-weight:400;margin:.2rem 0 .6rem">Bonjour ${esc(state.me.name)} 🌱</h2><p>Bienvenue dans l’espace partenaires des Jardins d’ici. Le calendrier et les documents sont prêts ; la galerie photo et l’outil de réunion arrivent ici très bientôt.</p></div><div class="agenda" id="homeAgenda"></div>`;
   const data = await api("events");
   const next = allItems(data).filter((i) => i.end >= todayIso()).slice(0, 5);
   $("homeAgenda").innerHTML = `<h3>Prochainement</h3>${next.map(rowHtml).join("") || "<p>Rien de prévu pour l’instant.</p>"}<p><a href="#calendrier">Voir tout le calendrier →</a></p>`;
@@ -567,6 +600,82 @@ const shiftMonth = (n) => { state.month = new Date(state.month.getFullYear(), st
 $("prevMonth").onclick = () => shiftMonth(-1);
 $("nextMonth").onclick = () => shiftMonth(1);
 $("todayMonth").onclick = () => { const t = new Date(); state.month = new Date(t.getFullYear(), t.getMonth(), 1); renderCal(); };
+// ——— Documents ———
+const ICONS = { pdf: "📕", doc: "📘", docx: "📘", odt: "📘", xls: "📗", xlsx: "📗", ods: "📗", csv: "📗", ppt: "📙", pptx: "📙", odp: "📙", jpg: "🖼️", jpeg: "🖼️", png: "🖼️", webp: "🖼️", zip: "🗜️" };
+const extOf = (n) => (n.match(/\.([a-z0-9]{1,5})$/i)?.[1] || "").toLowerCase();
+const sizeOf = (b) => b < 1024 * 1024 ? `${Math.max(1, Math.round(b / 1024))} Ko` : `${(b / 1048576).toFixed(1).replace(".", ",")} Mo`;
+const shortDate = (iso) => dateOf(iso).toLocaleDateString("fr-BE", { day: "numeric", month: "long", year: "numeric" });
+
+async function loadDocs(data) {
+  state.docs = data || (await api("documents"));
+  const sel = $("docFolder"), keep = sel.value;
+  const folders = [...new Set([...state.docs.folders, ...state.docs.documents.map((d) => d.folder)])];
+  sel.innerHTML = folders.map((f) => `<option>${esc(f)}</option>`).join("");
+  if (keep && folders.includes(keep)) sel.value = keep;
+  await renderDocs();
+}
+
+async function renderDocs() {
+  const q = $("docSearch").value.trim();
+  let docs = state.docs.documents, excerpts = {};
+  if (q) {
+    const { matches } = await api(`documents?q=${encodeURIComponent(q)}`);
+    excerpts = Object.fromEntries(matches.map((m) => [m.id, m.excerpt]));
+    docs = docs.filter((d) => d.id in excerpts);
+  }
+  const groups = {};
+  for (const d of docs) (groups[d.folder] ||= []).push(d);
+  const mark = (t) => q ? esc(t).replace(new RegExp(esc(q).replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), "gi"), (m) => `<mark>${m}</mark>`) : esc(t);
+  const rank = (f) => { const i = state.docs.folders.indexOf(f); return i < 0 ? 99 : i; };
+  $("docList").innerHTML = Object.entries(groups).sort(([a], [b]) => rank(a) - rank(b) || a.localeCompare(b)).map(([folder, list]) => `<section class="folder"><h3>${esc(folder)} <small>${list.length} document${list.length > 1 ? "s" : ""}</small></h3><div class="docs">${list.map((d) => {
+    const mine = state.me.role !== "partenaire" || d.uploaded_by === state.me.email;
+    const url = `/api/admin/documents/${d.id}/file`;
+    return `<div class="doc" data-doc="${esc(d.id)}"><span class="ico">${ICONS[extOf(d.name)] || "📄"}</span><span class="t"><a href="${url}" target="_blank" rel="noopener">${mark(d.title)}</a><small>${[d.doc_date ? shortDate(d.doc_date) : "", `${extOf(d.name).toUpperCase()} · ${sizeOf(d.size)}`, `déposé par ${esc(nameOf(d.uploaded_by))}`].filter(Boolean).join(" · ")}</small>${excerpts[d.id] ? `<q>${mark(excerpts[d.id])}</q>` : ""}</span>`
+      + `<span class="acts"><a class="btn ghost" href="${url}?download=1">Télécharger</a>${mine ? ` <button class="btn ghost" data-edit-doc>Modifier</button> <button class="btn ghost" data-del-doc aria-label="Supprimer">🗑</button>` : ""}</span></div>`;
+  }).join("")}</div></section>`).join("") || `<div class="empty"><p>${q ? "Aucun document ne correspond à cette recherche." : "Aucun document pour l’instant : déposez le premier !"}</p></div>`;
+  for (const row of $("docList").querySelectorAll("[data-doc]")) {
+    const d = state.docs.documents.find((x) => x.id === row.dataset.doc);
+    row.querySelector("[data-edit-doc]")?.addEventListener("click", () => editDoc(row, d));
+    row.querySelector("[data-del-doc]")?.addEventListener("click", async () => {
+      if (!confirm(`Supprimer « ${d.title} » ? Le fichier sera effacé pour tout le monde.`)) return;
+      try { await loadDocs(await api(`documents/${d.id}`, { method: "DELETE" })); } catch (e) { alert(e.message); }
+    });
+  }
+}
+
+function editDoc(row, d) {
+  const folders = [...new Set([...state.docs.folders, ...state.docs.documents.map((x) => x.folder)])];
+  row.innerHTML = `<span class="ico">${ICONS[extOf(d.name)] || "📄"}</span><form><input class="in" name="title" value="${esc(d.title)}" maxlength="140" style="flex:2;min-width:12rem" aria-label="Titre" /><input class="in" name="folder" value="${esc(d.folder)}" list="folderList" maxlength="60" aria-label="Dossier" /><datalist id="folderList">${folders.map((f) => `<option value="${esc(f)}">`).join("")}</datalist><input class="in" name="doc_date" type="date" value="${esc(d.doc_date || "")}" aria-label="Date du document" /><button class="btn go">Enregistrer</button><button type="button" class="btn ghost" data-cancel>Annuler</button></form>`;
+  const f = row.querySelector("form");
+  f.querySelector("[data-cancel]").onclick = () => renderDocs();
+  f.onsubmit = async (e) => {
+    e.preventDefault();
+    try { await loadDocs(await api(`documents/${d.id}`, { method: "PATCH", body: JSON.stringify({ title: f.elements.title.value, folder: f.elements.folder.value, doc_date: f.elements.doc_date.value }) })); }
+    catch (err) { alert(err.message); }
+  };
+}
+
+async function uploadDocs(files) {
+  const folder = $("docFolder").value;
+  for (const file of files) {
+    const line = document.createElement("div"); line.textContent = `⏳ ${file.name}`; $("uploads").append(line);
+    try {
+      if (file.size > 50 * 1024 * 1024) throw new Error("trop lourd (50 Mo maximum)");
+      state.docs = await api(`documents?name=${encodeURIComponent(file.name)}&folder=${encodeURIComponent(folder)}`, { method: "POST", body: file, headers: { "Content-Type": "application/octet-stream" } });
+      line.textContent = `✅ ${file.name}`;
+    } catch (e) { line.textContent = `⚠️ ${file.name} : ${e.message}`; }
+  }
+  await loadDocs(state.docs);
+  setTimeout(() => { for (const l of [...$("uploads").children]) if (l.textContent.startsWith("✅")) l.remove(); }, 4000);
+}
+$("addDocs").onclick = () => $("docFiles").click();
+$("docFiles").onchange = (e) => { const files = [...e.target.files]; e.target.value = ""; uploadDocs(files); };
+for (const ev of ["dragenter", "dragover"]) $("drop").addEventListener(ev, (e) => { e.preventDefault(); $("drop").classList.add("over"); });
+for (const ev of ["dragleave", "drop"]) $("drop").addEventListener(ev, (e) => { e.preventDefault(); $("drop").classList.remove("over"); });
+$("drop").addEventListener("drop", (e) => uploadDocs([...e.dataTransfer.files]));
+let searchTimer;
+$("docSearch").oninput = () => { clearTimeout(searchTimer); searchTimer = setTimeout(() => renderDocs().catch((e) => alert(e.message)), 250); };
+
 // Les activités publiques vivent dans l’agenda du site : on passe par l’assistant, qui prépare un aperçu avant publication.
 $("publicEvent").onclick = () => { history.replaceState(null, "", location.pathname); newConv(); route().then(() => { $("text").value = "Ajoute une activité à l’agenda du site : "; $("text").focus(); }); };
 
