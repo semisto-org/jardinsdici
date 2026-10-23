@@ -5,6 +5,8 @@ import adminPage from "./admin.html";
 import { authenticate } from "./auth";
 import { resolveUser, listUsers, can, cleanInput, checkChange, owners, type User } from "./users";
 import { accessStatus, syncAccess } from "./access";
+import { MAX_SIZE, FOLDERS, mimeOf, isInline, extOf, titleFromName, dateFromName, cleanDoc, canEditDoc, disposition, type Doc } from "./documents";
+import { docxText } from "./docx";
 import { cleanEvent, canEdit, listEvents, publicEvents, type CalEvent } from "./calendar";
 import { GitHub } from "./github";
 import { branchFor } from "./agent";
@@ -64,6 +66,7 @@ async function api(req: Request, url: URL, env: Env, editor: User): Promise<Resp
 
   if (parts[0] === "users") return usersApi(req, parts, env, editor);
   if (parts[0] === "events") return eventsApi(req, parts, env, editor);
+  if (parts[0] === "documents") return documentsApi(req, url, parts, env, editor);
 
   if (!can(editor, "site")) return json({ error: "Modifier le site est réservé aux éditeurs." }, 403);
 
@@ -265,6 +268,85 @@ async function eventsApi(req: Request, parts: string[], env: Env, editor: User):
   if (req.method === "DELETE") {
     await env.DB.prepare(`DELETE FROM events WHERE id = ?`).bind(ev.id).run();
     return withAll();
+  }
+  return json({ error: "Introuvable" }, 404);
+}
+
+const DOC_COLUMNS = "id, folder, name, title, doc_date, mime, size, uploaded_by, created_at, updated_at";
+
+async function documentsApi(req: Request, url: URL, parts: string[], env: Env, editor: User): Promise<Response> {
+  const listing = async (status = 200) => {
+    const { results } = await env.DB.prepare(`SELECT ${DOC_COLUMNS} FROM documents ORDER BY folder COLLATE NOCASE, COALESCE(doc_date, '') DESC, created_at DESC`).all();
+    return json({ documents: results, folders: FOLDERS }, status);
+  };
+
+  if (parts.length === 1 && req.method === "GET") {
+    const q = (url.searchParams.get("q") ?? "").trim().slice(0, 80);
+    if (!q) return listing();
+    // Recherche dans le titre, le nom et le texte des documents Word ; renvoie un extrait autour du mot trouvé.
+    const like = `%${q.replace(/[\\%_]/g, (c) => "\\" + c)}%`;
+    const { results } = await env.DB.prepare(`SELECT id, text FROM documents WHERE title LIKE ?1 ESCAPE '\\' OR name LIKE ?1 ESCAPE '\\' OR text LIKE ?1 ESCAPE '\\' LIMIT 100`).bind(like).all<{ id: string; text: string | null }>();
+    const lower = q.toLowerCase();
+    return json({ matches: results.map((r) => {
+      const i = r.text ? r.text.toLowerCase().indexOf(lower) : -1;
+      return { id: r.id, excerpt: i < 0 ? null : (i > 60 ? "…" : "") + r.text!.slice(Math.max(0, i - 60), i + q.length + 80).replace(/\s+/g, " ").trim() + "…" };
+    }) });
+  }
+
+  if (parts.length === 1 && req.method === "POST") {
+    const name = (url.searchParams.get("name") ?? "").trim().replace(/[\/\\]/g, "-").slice(0, 160);
+    const folder = cleanDoc({ folder: url.searchParams.get("folder") ?? "" });
+    if ("error" in folder) return json(folder, 400);
+    const mime = mimeOf(name);
+    if (!name || !mime) return json({ error: "Type de fichier non accepté : PDF, Word, Excel, PowerPoint, LibreOffice, images, texte ou ZIP." }, 415);
+    const size = Number(req.headers.get("Content-Length") ?? 0);
+    if (size > MAX_SIZE) return json({ error: "Fichier trop lourd (50 Mo maximum)." }, 413);
+    const bytes = new Uint8Array(await req.arrayBuffer());
+    if (!bytes.length) return json({ error: "Fichier vide." }, 400);
+    if (bytes.length > MAX_SIZE) return json({ error: "Fichier trop lourd (50 Mo maximum)." }, 413);
+    const id = crypto.randomUUID().replace(/-/g, "").slice(0, 12);
+    const key = `documents/${id}.${extOf(name)}`;
+    await env.FILES.put(key, bytes, { httpMetadata: { contentType: mime } });
+    const text = extOf(name) === "docx" ? await docxText(bytes) : mime.startsWith("text/") ? new TextDecoder().decode(bytes) : null;
+    const now = Date.now();
+    await env.DB.prepare(`INSERT INTO documents (id, folder, name, title, doc_date, mime, size, r2_key, text, uploaded_by, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`)
+      .bind(id, folder.folder, name, titleFromName(name), dateFromName(name), mime, bytes.length, key, text?.slice(0, 200_000) ?? null, editor.email, now, now).run();
+    return listing(201);
+  }
+
+  const doc = parts[1] ? await env.DB.prepare(`SELECT * FROM documents WHERE id = ?`).bind(parts[1]).first<Doc>() : null;
+  if (!doc) return json({ error: "Document introuvable." }, 404);
+
+  if (parts[2] === "file" && parts.length === 3 && req.method === "GET") {
+    const obj = await env.FILES.get(doc.r2_key);
+    if (!obj) return json({ error: "Le fichier n'est plus disponible." }, 404);
+    const inline = isInline(doc.mime) && url.searchParams.get("download") !== "1";
+    return new Response(obj.body, {
+      headers: {
+        "Content-Type": doc.mime,
+        "Content-Length": String(obj.size),
+        "Content-Disposition": disposition(inline, doc.name),
+        "Cache-Control": "private, max-age=3600",
+        "X-Content-Type-Options": "nosniff",
+        "Content-Security-Policy": "sandbox; default-src 'none'; img-src 'self'; style-src 'unsafe-inline'",
+      },
+    });
+  }
+
+  if (parts.length !== 2) return json({ error: "Introuvable" }, 404);
+  if (!canEditDoc(editor, doc)) return json({ error: "Seule la personne qui a déposé ce document (ou un éditeur) peut le modifier." }, 403);
+
+  if (req.method === "PATCH") {
+    const input = cleanDoc(await req.json());
+    if ("error" in input) return json(input, 400);
+    const keys = Object.keys(input) as (keyof typeof input)[];
+    if (keys.length) await env.DB.prepare(`UPDATE documents SET ${keys.map((k) => `${k} = ?`).join(", ")}, updated_at = ? WHERE id = ?`).bind(...keys.map((k) => input[k] ?? null), Date.now(), doc.id).run();
+    return listing();
+  }
+  if (req.method === "DELETE") {
+    await env.FILES.delete(doc.r2_key);
+    await env.DB.prepare(`DELETE FROM documents WHERE id = ?`).bind(doc.id).run();
+    return listing();
   }
   return json({ error: "Introuvable" }, 404);
 }

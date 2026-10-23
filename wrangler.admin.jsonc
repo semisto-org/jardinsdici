@@ -12,6 +12,8 @@
   "d1_databases": [
     { "binding": "DB", "database_name": "jardinsdici-admin", "database_id": "af47d289-22e3-4c7a-a5ea-e88b72322e72", "migrations_dir": "migrations" }
   ],
+  // Fichiers de l'espace partenaires (documents, photos) : privés, servis uniquement à travers l'admin.
+  "r2_buckets": [{ "binding": "FILES", "bucket_name": "jardinsdici-fichiers" }],
   "durable_objects": { "bindings": [{ "name": "RUNNER", "class_name": "ConversationRunner" }] },
   "migrations": [{ "tag": "v1", "new_sqlite_classes": ["ConversationRunner"] }],
   "vars": {
