@@ -30,7 +30,7 @@ Utilisateurs et droits : table D1 `users` (`worker/users.ts`), gérée depuis l'
 
 Calendrier : événements internes (réunions, gestion, chantiers) dans la table D1 `events` (`worker/calendar.ts`), modifiables par leur auteur, les éditeurs et les administrateurs. Les activités publiques restent dans `src/content/events/` ; l'admin les lit sur le site via `/agenda.json` (`src/pages/agenda.json.ts`) et passe par l'assistant pour en publier une.
 
-Documents : fichiers dans le bucket R2 privé `jardinsdici-fichiers` (binding `FILES`), fiches dans la table D1 `documents` (`worker/documents.ts`) ; le texte des .docx est extrait (`worker/docx.ts`) pour la recherche. Servis uniquement à travers l'admin, jamais en HTML ni SVG.
+Documents : fichiers dans le bucket R2 privé `jardinsdici-docs-eu` (juridiction UE) (binding `FILES`), fiches dans la table D1 `documents` (`worker/documents.ts`) ; le texte des .docx est extrait (`worker/docx.ts`) pour la recherche. Servis uniquement à travers l'admin, jamais en HTML ni SVG.
 
 ## Règles
 
