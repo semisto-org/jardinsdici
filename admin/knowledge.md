@@ -4,7 +4,7 @@ Ce fichier est lu par l'assistant de l'admin à chaque conversation. Il se modif
 
 ## Le lieu
 
-Les Jardins d'ici sont un espace d'agroécologie et de biodiversité d'environ 20 ares, à Naninne (Namur), en bordure de la Nationale 4, juste à côté du magasin *d'ici* (« le supermarché du local »). Adresse : Chaussée de Marche 940, 5100 Naninne. On se gare sur le parking du magasin ; l'entrée des jardins est devant le chalet Natagora. Contact général : bonjour@jardinsdici.org.
+Les Jardins d'ici sont un espace d'agroécologie et de biodiversité d'environ 1,4 hectare, à Naninne (Namur), en bordure de la Nationale 4, juste à côté du magasin *d'ici* (« le supermarché du local »). Attention : les 20 ares, c'est la superficie du seul jardin-forêt (forêt nourricière), pas de l'ensemble du terrain. Adresse : Chaussée de Marche 940, 5100 Naninne. On se gare sur le parking du magasin ; l'entrée des jardins est devant le chalet Natagora. Contact général : bonjour@jardinsdici.org.
 
 Le lieu se présente comme « un laboratoire à ciel ouvert » où l'on expérimente l'agroécologie les mains dans la terre, pour réconcilier ce que l'on cultive et ce que l'on consomme, avec un objectif partagé : redonner de l'espace au vivant.
 
