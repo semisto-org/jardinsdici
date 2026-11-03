@@ -32,6 +32,8 @@ Calendrier : événements internes (réunions, gestion, chantiers) dans la table
 
 Documents : fichiers dans le bucket R2 privé `jardinsdici-docs-eu` (juridiction UE) (binding `FILES`), fiches dans la table D1 `documents` (`worker/documents.ts`) ; le texte des .docx est extrait (`worker/docx.ts`) pour la recherche. Servis uniquement à travers l'admin, jamais en HTML ni SVG.
 
+Galerie (photothèque) : photos et vidéos dans le même bucket sous `galerie/` (vignettes faites par le navigateur sous `galerie/vignettes/`), fiches dans la table D1 `media` (`worker/galerie.ts`) avec légende, crédit, date et étiquettes ; 95 Mo par fichier (limite des requêtes Worker), vidéos lues par plages (Range). « Mettre sur le site » (éditeurs) : le navigateur réduit la photo en JPEG, le Worker la dépose dans `src/assets/galerie/` sur la branche d'une nouvelle conversation et lance l'assistant, qui vérifie l'aperçu ; la mise en ligne passe par le bouton Publier, comme toute modification.
+
 ## Règles
 
 - bun uniquement, jamais npm/npx.

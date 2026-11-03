@@ -141,6 +141,31 @@
   .doc .t q { display: block; font-size: .85rem; color: var(--ink-soft); font-style: italic; margin-top: .2rem; } .doc .t mark { background: #fbe7a6; color: var(--ink); }
   .doc .acts { white-space: nowrap; } .doc .acts .btn { padding: .3rem .8rem; font-size: .85rem; }
   .doc form { display: flex; flex-wrap: wrap; gap: .5rem; flex: 1; align-items: center; } .doc form .in { padding: .35rem .6rem; }
+  .galbar { display: flex; flex-wrap: wrap; gap: .6rem; align-items: center; }
+  .galbar input[type=search] { flex: 1; min-width: 14rem; }
+  .tagbar { display: flex; flex-wrap: wrap; gap: .4rem; }
+  .tagf { border: 1px solid var(--line); background: var(--card); border-radius: 999px; padding: .2rem .75rem; font-size: .85rem; color: var(--ink); }
+  .tagf.on { background: var(--ink); border-color: var(--ink); color: var(--paper); }
+  .tagf small { color: var(--ink-soft); margin-left: .2rem; } .tagf.on small { color: var(--paper); opacity: .7; }
+  .drop .meta { display: flex; flex-wrap: wrap; gap: .6rem; justify-content: center; margin-top: .7rem; }
+  .drop .meta .in { padding: .35rem .6rem; min-width: 12rem; }
+  .gallery { display: grid; grid-template-columns: repeat(auto-fill, minmax(170px, 1fr)); gap: .7rem; }
+  .tile { position: relative; border: 0; padding: 0; border-radius: 12px; overflow: hidden; aspect-ratio: 1; background: var(--paper-deep); box-shadow: 0 1px 0 rgb(29 58 42 / .08); }
+  .tile img { width: 100%; height: 100%; object-fit: cover; display: block; transition: transform .2s; }
+  .tile:hover img { transform: scale(1.03); }
+  .tile .noimg { display: grid; place-items: center; height: 100%; font-size: 2.2rem; }
+  .tile .play { position: absolute; inset: 0; display: grid; place-items: center; font-size: 2rem; color: #fff; text-shadow: 0 2px 10px rgb(0 0 0 / .5); pointer-events: none; }
+  .tile .on-site { position: absolute; top: .45rem; left: .45rem; font-size: .7rem; font-weight: 700; padding: .1rem .5rem; border-radius: 999px; background: var(--moss); color: #fff; }
+  .tile .on-site.wait { background: var(--sun); color: var(--ink); }
+  .tile .cap { position: absolute; inset: auto 0 0 0; padding: 1.4rem .6rem .45rem; font-size: .8rem; color: #fff; text-align: left; background: linear-gradient(transparent, rgb(0 0 0 / .65)); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .mdetail[hidden] { display: none; }
+  .mdetail { display: grid; grid-template-columns: minmax(0, 3fr) minmax(16rem, 2fr); gap: 1.2rem; align-items: start; }
+  .mdetail .view img, .mdetail .view video { width: 100%; max-height: 65vh; object-fit: contain; border-radius: 12px; background: #1d1d1b; display: block; }
+  .mdetail h2 { font-family: var(--display); font-weight: 400; font-size: 1.3rem; margin: 0 0 .4rem; }
+  .mdetail .tags { display: flex; flex-wrap: wrap; gap: .3rem; margin: .6rem 0; }
+  .mdetail .tags span { font-size: .78rem; background: #e8ecdc; border-radius: 999px; padding: .05rem .6rem; }
+  .mdetail .acts { display: flex; flex-wrap: wrap; gap: .5rem; margin-top: 1rem; }
+  .mdetail form { display: flex; flex-direction: column; gap: .6rem; }
   .menu { display: none; }
   @media (max-width: 820px) {
     body { grid-template-columns: 1fr; }
@@ -149,6 +174,7 @@
     .menu { display: inline-block; }
     .msg { max-width: 95%; }
     .month .day { min-height: 4.2rem; } .ev { font-size: 0; padding: 0; height: .45rem; border-left-width: 0; background: var(--k); }
+    .mdetail { grid-template-columns: 1fr; } .gallery { grid-template-columns: repeat(auto-fill, minmax(110px, 1fr)); }
     .users th:nth-child(2), .users td:nth-child(2), .users th:nth-child(4), .users td:nth-child(4) { display: none; }
   }
 </style>
@@ -234,6 +260,26 @@
     <div class="drop" id="drop">Glissez des fichiers ici (PV, PDF, plans, tableaux… 50 Mo maximum par fichier), ou utilisez « Déposer des fichiers ».<div class="uploads" id="uploads"></div></div>
     <input type="file" id="docFiles" multiple hidden />
     <div id="docList"></div>
+  </div></div>
+</main>
+<main id="galView" hidden>
+  <header class="bar">
+    <button class="btn ghost menu" data-menu aria-label="Menu">☰</button>
+    <h1>Galerie</h1>
+    <span><button class="btn" id="addMedia">＋ Déposer des photos ou vidéos</button></span>
+  </header>
+  <div class="page"><div class="wide">
+    <div class="card mdetail" id="mediaDetail" hidden></div>
+    <div class="drop" id="mediaDrop">Glissez ici vos photos et vidéos (JPEG, PNG, WebP, MP4, MOV… 95 Mo maximum par fichier), ou utilisez « Déposer des photos ou vidéos ».
+      <div class="meta"><input class="in" id="mediaCredit" maxlength="80" placeholder="Photo : prénom nom" aria-label="Crédit photo" autocomplete="off" /><input class="in" id="mediaTags" maxlength="200" placeholder="Étiquettes : chantier, potager…" aria-label="Étiquettes" autocomplete="off" /></div>
+      <div class="uploads" id="mediaUploads"></div></div>
+    <input type="file" id="mediaFiles" accept="image/jpeg,image/png,image/webp,video/*" multiple hidden />
+    <div class="galbar">
+      <input class="in" type="search" id="mediaSearch" placeholder="Rechercher une légende, une étiquette, un photographe…" aria-label="Rechercher" />
+      <select class="in" id="mediaKind" aria-label="Type"><option value="">Photos et vidéos</option><option value="photo">Photos</option><option value="video">Vidéos</option><option value="site">Sur le site</option></select>
+    </div>
+    <div class="tagbar" id="tagbar"></div>
+    <div class="gallery" id="gallery"></div>
   </div></div>
 </main>
 <main id="siteView" hidden>
@@ -460,13 +506,13 @@ const ROLES = {
   editeur: { label: "Éditeur du site", text: "Modifie le site avec l’assistant et accède à tout l’espace partenaires." },
   partenaire: { label: "Partenaire", text: "Accède à l’espace partenaires : calendrier, documents, galerie et réunions." },
 };
-const SOON = [["🖼️", "Galerie"], ["🤝", "Réunions"]];
-const VIEWS = { "#utilisateurs": "users", "#calendrier": "cal", "#documents": "docs" };
-const currentView = () => { const v = VIEWS[location.hash]; return v === "cal" || v === "docs" || (v === "users" && state.me.can.users) ? v : state.me.can.site ? "site" : "home"; };
+const SOON = [["🤝", "Réunions"]];
+const VIEWS = { "#utilisateurs": "users", "#calendrier": "cal", "#documents": "docs", "#galerie": "gal" };
+const currentView = () => { const v = VIEWS[location.hash]; return v === "cal" || v === "docs" || v === "gal" || (v === "users" && state.me.can.users) ? v : state.me.can.site ? "site" : "home"; };
 
 function renderNav(v) {
   const items = [state.me.can.site ? `<a href="#" data-home class="${v === "site" ? "active" : ""}">🌐 Site web</a>` : `<a href="#" data-home class="${v === "home" ? "active" : ""}">🏡 Accueil</a>`];
-  items.push(`<a href="#calendrier" class="${v === "cal" ? "active" : ""}">📅 Calendrier</a>`, `<a href="#documents" class="${v === "docs" ? "active" : ""}">📄 Documents</a>`);
+  items.push(`<a href="#calendrier" class="${v === "cal" ? "active" : ""}">📅 Calendrier</a>`, `<a href="#documents" class="${v === "docs" ? "active" : ""}">📄 Documents</a>`, `<a href="#galerie" class="${v === "gal" ? "active" : ""}">🖼️ Galerie</a>`);
   for (const [icon, label] of SOON) items.push(`<a class="soon" aria-disabled="true">${icon} ${label}<small>bientôt</small></a>`);
   if (state.me.can.users) items.push("<hr />", `<a href="#utilisateurs" class="${v === "users" ? "active" : ""}">👥 Utilisateurs</a>`);
   $("nav").innerHTML = items.join("");
@@ -476,12 +522,13 @@ function renderNav(v) {
 async function route() {
   const v = currentView();
   renderNav(v);
-  $("siteView").hidden = v !== "site"; $("usersView").hidden = v !== "users"; $("homeView").hidden = v !== "home"; $("calView").hidden = v !== "cal"; $("docsView").hidden = v !== "docs";
+  $("siteView").hidden = v !== "site"; $("usersView").hidden = v !== "users"; $("homeView").hidden = v !== "home"; $("calView").hidden = v !== "cal"; $("docsView").hidden = v !== "docs"; $("galView").hidden = v !== "gal";
   $("siteSide").hidden = v !== "site";
   document.body.classList.remove("side");
   if (v === "users") return loadUsers();
   if (v === "cal") return loadCal();
   if (v === "docs") return loadDocs();
+  if (v === "gal") return loadMedia();
   if (v === "home") return renderHome();
   await loadList();
   const id = location.hash.slice(1);
@@ -490,7 +537,7 @@ async function route() {
 window.addEventListener("hashchange", () => route().catch((e) => alertInline(e.message)));
 
 async function renderHome() {
-  $("home").innerHTML = `<div class="card"><h2 style="font-family:var(--display);font-weight:400;margin:.2rem 0 .6rem">Bonjour ${esc(state.me.name)} 🌱</h2><p>Bienvenue dans l’espace partenaires des Jardins d’ici. Le calendrier et les documents sont prêts ; la galerie photo et l’outil de réunion arrivent ici très bientôt.</p></div><div class="agenda" id="homeAgenda"></div>`;
+  $("home").innerHTML = `<div class="card"><h2 style="font-family:var(--display);font-weight:400;margin:.2rem 0 .6rem">Bonjour ${esc(state.me.name)} 🌱</h2><p>Bienvenue dans l’espace partenaires des Jardins d’ici. Le calendrier, les documents et la galerie photo sont prêts ; l’outil de réunion arrive ici très bientôt.</p></div><div class="agenda" id="homeAgenda"></div>`;
   const data = await api("events");
   const next = allItems(data).filter((i) => i.end >= todayIso()).slice(0, 5);
   $("homeAgenda").innerHTML = `<h3>Prochainement</h3>${next.map(rowHtml).join("") || "<p>Rien de prévu pour l’instant.</p>"}<p><a href="#calendrier">Voir tout le calendrier →</a></p>`;
@@ -675,6 +722,165 @@ for (const ev of ["dragleave", "drop"]) $("drop").addEventListener(ev, (e) => { 
 $("drop").addEventListener("drop", (e) => uploadDocs([...e.dataTransfer.files]));
 let searchTimer;
 $("docSearch").oninput = () => { clearTimeout(searchTimer); searchTimer = setTimeout(() => renderDocs().catch((e) => alert(e.message)), 250); };
+
+// ——— Galerie (photothèque) ———
+const mediaUrl = (m, what = "file") => `/api/admin/media/${m.id}/${what}`;
+const SITE_STATE = (m) => m.site_status === "publiee" ? "site" : m.site_status === "ouverte" || m.site_status === "apercu" ? "wait" : null;
+
+async function loadMedia(data) {
+  state.media = data || (await api("media"));
+  if (!$("mediaCredit").value && !state.creditTouched) $("mediaCredit").value = state.me.name;
+  renderMedia();
+}
+
+function renderMedia() {
+  const all = state.media.media, q = $("mediaSearch").value.trim().toLowerCase(), kind = $("mediaKind").value;
+  const counts = {};
+  for (const m of all) for (const t of m.tags ? m.tags.split(",") : []) counts[t] = (counts[t] || 0) + 1;
+  if (state.tag && !counts[state.tag]) state.tag = null;
+  $("tagbar").innerHTML = Object.entries(counts).sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0])).slice(0, 24)
+    .map(([t, n]) => `<button class="tagf ${state.tag === t ? "on" : ""}" data-tag="${esc(t)}">${esc(t)}<small>${n}</small></button>`).join("");
+  for (const b of $("tagbar").querySelectorAll("[data-tag]")) b.onclick = () => { state.tag = state.tag === b.dataset.tag ? null : b.dataset.tag; renderMedia(); };
+  const list = all.filter((m) => (!kind || (kind === "site" ? SITE_STATE(m) === "site" : m.kind === kind))
+    && (!state.tag || m.tags.split(",").includes(state.tag))
+    && (!q || [m.title, m.tags, m.credit, m.name, nameOf(m.uploaded_by)].join(" ").toLowerCase().includes(q)));
+  $("gallery").innerHTML = list.map((m) => {
+    const s = SITE_STATE(m);
+    return `<button class="tile" data-media="${esc(m.id)}" title="${esc(m.title || m.name)}">${m.thumb ? `<img src="${mediaUrl(m, "thumb")}" alt="${esc(m.title)}" loading="lazy" />` : `<span class="noimg">${m.kind === "video" ? "🎬" : "🖼️"}</span>`}`
+      + `${m.kind === "video" && m.thumb ? '<span class="play">▶</span>' : ""}${s ? `<span class="on-site ${s === "wait" ? "wait" : ""}">${s === "wait" ? "En route vers le site" : "Sur le site"}</span>` : ""}${m.title ? `<span class="cap">${esc(m.title)}</span>` : ""}</button>`;
+  }).join("") || `<div class="empty" style="grid-column:1/-1;margin-top:2rem"><p>${all.length ? "Aucune photo ne correspond." : "La galerie est vide pour l’instant : déposez les premières photos !"}</p></div>`;
+  for (const b of $("gallery").querySelectorAll("[data-media]")) b.onclick = () => openMedia(b.dataset.media);
+  if (state.openMedia) renderMediaDetail();
+}
+
+function openMedia(id) { state.openMedia = id; state.editMedia = false; renderMediaDetail(); $("mediaDetail").scrollIntoView({ behavior: "smooth", block: "start" }); }
+
+function renderMediaDetail() {
+  const box = $("mediaDetail"), m = state.media.media.find((x) => x.id === state.openMedia);
+  if (!m) { box.hidden = true; state.openMedia = null; return; }
+  const mine = state.me.role !== "partenaire" || m.uploaded_by === state.me.email;
+  const s = SITE_STATE(m);
+  const view = m.kind === "video" ? `<video src="${mediaUrl(m)}" controls preload="metadata"${m.thumb ? ` poster="${mediaUrl(m, "thumb")}"` : ""}></video>` : `<img src="${mediaUrl(m)}" alt="${esc(m.title)}" />`;
+  const info = state.editMedia
+    ? `<form id="mediaForm"><label class="f">Légende<input class="in" name="title" value="${esc(m.title)}" maxlength="140" autocomplete="off" /></label><label class="f">Crédit photo<input class="in" name="credit" value="${esc(m.credit || "")}" maxlength="80" autocomplete="off" /></label><label class="f">Date de la prise de vue<input class="in" name="taken_on" type="date" value="${esc(m.taken_on || "")}" /></label><label class="f">Étiquettes (séparées par des virgules)<input class="in" name="tags" value="${esc(m.tags.split(",").join(", "))}" maxlength="200" autocomplete="off" /></label><div class="formbar"><span class="err" id="mediaErr"></span><button type="button" class="btn ghost" data-cancel>Annuler</button><button class="btn go">Enregistrer</button></div></form>`
+    : `<h2>${esc(m.title || "Sans légende")}</h2><dl class="detail" style="display:grid;grid-template-columns:max-content 1fr;gap:.3rem 1rem;margin:0">${m.credit ? `<dt>${m.kind === "video" ? "Vidéo" : "Photo"}</dt><dd>${esc(m.credit)}</dd>` : ""}${m.taken_on ? `<dt>Prise le</dt><dd>${shortDate(m.taken_on)}</dd>` : ""}<dt>Déposée par</dt><dd>${esc(nameOf(m.uploaded_by))}, ${ago(m.created_at)}</dd><dt>Fichier</dt><dd>${esc(extOf(m.name).toUpperCase())} · ${sizeOf(m.size)}${m.width ? ` · ${m.width} × ${m.height}` : ""}</dd></dl>`
+      + `${m.tags ? `<div class="tags">${m.tags.split(",").map((t) => `<span>${esc(t)}</span>`).join("")}</div>` : ""}`
+      + `${s === "site" ? `<p class="note" style="margin:.6rem 0 0">✅ Cette photo est dans la <a href="${esc(state.me.site)}/galerie" target="_blank" rel="noopener">galerie du site</a>.</p>` : s === "wait" ? `<p class="note warn" style="margin:.6rem 0 0">⏳ En route vers le site : l’aperçu se prépare${state.me.can.site ? `, <a href="#${esc(m.site_conv)}">suivre et publier →</a>` : "."}</p>` : ""}`
+      + `<div class="acts"><a class="btn ghost" href="${mediaUrl(m)}?download=1">Télécharger</a>${mine ? ' <button class="btn ghost" data-edit>Modifier</button> <button class="btn ghost" data-del aria-label="Supprimer">🗑</button>' : ""}`
+      + `${state.me.can.site && m.kind === "photo" && !s ? ' <button class="btn go" data-site>🌐 Mettre sur le site</button>' : ""} <button class="btn ghost" data-close>Fermer</button></div>`;
+  box.innerHTML = `<div class="view">${view}</div><div>${info}</div>`;
+  box.hidden = false;
+  box.querySelector("[data-close]")?.addEventListener("click", () => { box.hidden = true; state.openMedia = null; });
+  box.querySelector("[data-edit]")?.addEventListener("click", () => { state.editMedia = true; renderMediaDetail(); });
+  box.querySelector("[data-del]")?.addEventListener("click", async () => {
+    if (!confirm(`Supprimer cette ${m.kind === "video" ? "vidéo" : "photo"} de la galerie ? Elle sera effacée pour tout le monde${s ? " (la copie déjà sur le site reste en ligne)" : ""}.`)) return;
+    try { state.openMedia = null; box.hidden = true; await loadMedia(await api(`media/${m.id}`, { method: "DELETE" })); } catch (e) { alert(e.message); }
+  });
+  box.querySelector("[data-site]")?.addEventListener("click", (e) => putOnSite(m, e.target));
+  const f = box.querySelector("#mediaForm");
+  if (f) {
+    f.querySelector("[data-cancel]").onclick = () => { state.editMedia = false; renderMediaDetail(); };
+    f.onsubmit = async (e) => {
+      e.preventDefault();
+      try {
+        const data = await api(`media/${m.id}`, { method: "PATCH", body: JSON.stringify({ title: f.elements.title.value, credit: f.elements.credit.value, taken_on: f.elements.taken_on.value, tags: f.elements.tags.value }) });
+        state.editMedia = false; await loadMedia(data);
+      } catch (err) { $("mediaErr").textContent = err.message; }
+    };
+  }
+}
+
+// Réduit une image dans le navigateur (le Worker ne sait pas le faire) : vignette et version pour le site.
+async function jpegFrom(source, max, quality = 0.85) {
+  const w = source.videoWidth || source.width, h = source.videoHeight || source.height;
+  const r = Math.min(1, max / Math.max(w, h));
+  const c = document.createElement("canvas");
+  c.width = Math.round(w * r); c.height = Math.round(h * r);
+  c.getContext("2d").drawImage(source, 0, 0, c.width, c.height);
+  return new Promise((ok) => c.toBlob(ok, "image/jpeg", quality));
+}
+
+async function preparePhoto(file) {
+  const bmp = await createImageBitmap(file);
+  const thumb = await jpegFrom(bmp, 480, 0.8);
+  return { thumb, w: bmp.width, h: bmp.height };
+}
+
+function prepareVideo(file) {
+  return new Promise((ok) => {
+    const v = document.createElement("video"), url = URL.createObjectURL(file);
+    const done = (res) => { clearTimeout(timer); URL.revokeObjectURL(url); ok(res); };
+    const timer = setTimeout(() => done({}), 10000);
+    v.muted = true; v.preload = "auto"; v.playsInline = true;
+    v.onloadedmetadata = () => { v.currentTime = Math.min(1, (v.duration || 2) / 2); };
+    v.onseeked = async () => done({ thumb: await jpegFrom(v, 480, 0.8), w: v.videoWidth, h: v.videoHeight });
+    v.onerror = () => done({});
+    v.src = url;
+  });
+}
+
+// Date de la prise de vue : celle de l’appareil (EXIF) si on la trouve, sinon la date du fichier.
+async function takenOn(file) {
+  if (/jpe?g$/i.test(file.type)) {
+    const head = new TextDecoder("latin1").decode(await file.slice(0, 131072).arrayBuffer());
+    const d = head.match(/(20\d\d|19\d\d):(\d\d):(\d\d) \d\d:\d\d:\d\d/);
+    if (d) return `${d[1]}-${d[2]}-${d[3]}`;
+  }
+  const t = new Date(file.lastModified || Date.now());
+  return `${t.getFullYear()}-${String(t.getMonth() + 1).padStart(2, "0")}-${String(t.getDate()).padStart(2, "0")}`;
+}
+
+function sendWithProgress(path, file, onProgress) {
+  return new Promise((ok, ko) => {
+    const x = new XMLHttpRequest();
+    x.open("POST", `/api/admin/${path}`);
+    x.setRequestHeader("X-Admin-Request", "1");
+    x.setRequestHeader("Content-Type", "application/octet-stream");
+    x.upload.onprogress = (e) => e.lengthComputable && onProgress(Math.round((e.loaded / e.total) * 100));
+    x.onload = () => { let body = {}; try { body = JSON.parse(x.responseText); } catch {} x.status < 300 ? ok(body) : ko(new Error(body.error || `Erreur ${x.status}`)); };
+    x.onerror = () => ko(new Error("connexion interrompue"));
+    x.send(file);
+  });
+}
+
+async function uploadMedia(files) {
+  const credit = $("mediaCredit").value.trim(), tags = $("mediaTags").value.trim();
+  for (const file of files) {
+    const line = document.createElement("div"); line.textContent = `⏳ ${file.name}`; $("mediaUploads").append(line);
+    try {
+      if (file.size > 95 * 1024 * 1024) throw new Error("trop lourd (95 Mo maximum)");
+      const video = file.type.startsWith("video/") || /\.(mp4|m4v|mov|webm)$/i.test(file.name);
+      const prep = await (video ? prepareVideo(file) : preparePhoto(file)).catch(() => ({}));
+      const q = new URLSearchParams({ name: file.name, credit, tags, taken_on: await takenOn(file), ...(prep.w ? { w: prep.w, h: prep.h } : {}) });
+      const data = await sendWithProgress(`media?${q}`, file, (p) => (line.textContent = `⏳ ${file.name} · ${p} %`));
+      if (prep.thumb) await api(`media/${data.id}/thumb`, { method: "PUT", body: prep.thumb, headers: { "Content-Type": "image/jpeg" } }).catch(() => {});
+      line.textContent = `✅ ${file.name}`;
+    } catch (e) { line.textContent = `⚠️ ${file.name} : ${e.message}`; }
+  }
+  await loadMedia();
+  setTimeout(() => { for (const l of [...$("mediaUploads").children]) if (l.textContent.startsWith("✅")) l.remove(); }, 4000);
+}
+
+async function putOnSite(m, btn) {
+  if (!confirm("Mettre cette photo dans la galerie publique du site ? L’assistant prépare un aperçu ; elle sera en ligne quand vous cliquerez sur Publier.")) return;
+  btn.disabled = true; btn.textContent = "Préparation…";
+  try {
+    const bmp = await createImageBitmap(await (await fetch(mediaUrl(m))).blob());
+    let jpeg = await jpegFrom(bmp, 2000);
+    if (jpeg.size > 3_900_000) jpeg = await jpegFrom(bmp, 1600, 0.8);
+    const data = await api(`media/${m.id}/site`, { method: "POST", body: jpeg, headers: { "Content-Type": "image/jpeg" } });
+    location.hash = `#${data.conv}`;
+  } catch (e) { alert(e.message); btn.disabled = false; btn.textContent = "🌐 Mettre sur le site"; }
+}
+
+$("addMedia").onclick = () => $("mediaFiles").click();
+$("mediaFiles").onchange = (e) => { const files = [...e.target.files]; e.target.value = ""; uploadMedia(files); };
+for (const ev of ["dragenter", "dragover"]) $("mediaDrop").addEventListener(ev, (e) => { e.preventDefault(); $("mediaDrop").classList.add("over"); });
+for (const ev of ["dragleave", "drop"]) $("mediaDrop").addEventListener(ev, (e) => { e.preventDefault(); $("mediaDrop").classList.remove("over"); });
+$("mediaDrop").addEventListener("drop", (e) => uploadMedia([...e.dataTransfer.files]));
+$("mediaCredit").oninput = () => { state.creditTouched = true; };
+$("mediaSearch").oninput = () => renderMedia();
+$("mediaKind").onchange = () => renderMedia();
 
 // Les activités publiques vivent dans l’agenda du site : on passe par l’assistant, qui prépare un aperçu avant publication.
 $("publicEvent").onclick = () => { history.replaceState(null, "", location.pathname); newConv(); route().then(() => { $("text").value = "Ajoute une activité à l’agenda du site : "; $("text").focus(); }); };

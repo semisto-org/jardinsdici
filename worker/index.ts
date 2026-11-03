@@ -7,6 +7,7 @@ import { resolveUser, listUsers, can, cleanInput, checkChange, owners, type User
 import { accessStatus, syncAccess } from "./access";
 import { MAX_SIZE, FOLDERS, mimeOf, isInline, extOf, titleFromName, dateFromName, cleanDoc, canEditDoc, disposition, type Doc } from "./documents";
 import { docxText } from "./docx";
+import * as gal from "./galerie";
 import { cleanEvent, canEdit, listEvents, publicEvents, type CalEvent } from "./calendar";
 import { GitHub } from "./github";
 import { branchFor } from "./agent";
@@ -35,7 +36,7 @@ export default {
           "Content-Type": "text/html; charset=utf-8",
           "Cache-Control": "no-store",
           "X-Frame-Options": "DENY",
-          "Content-Security-Policy": "default-src 'self'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; img-src 'self' data: blob:; connect-src 'self'; frame-ancestors 'none'",
+          "Content-Security-Policy": "default-src 'self'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; img-src 'self' data: blob:; media-src 'self' blob:; connect-src 'self'; frame-ancestors 'none'",
         },
       });
     }
@@ -67,6 +68,7 @@ async function api(req: Request, url: URL, env: Env, editor: User): Promise<Resp
   if (parts[0] === "users") return usersApi(req, parts, env, editor);
   if (parts[0] === "events") return eventsApi(req, parts, env, editor);
   if (parts[0] === "documents") return documentsApi(req, url, parts, env, editor);
+  if (parts[0] === "media") return mediaApi(req, url, parts, env, editor, gh);
 
   if (!can(editor, "site")) return json({ error: "Modifier le site est réservé aux éditeurs." }, 403);
 
@@ -346,6 +348,115 @@ async function documentsApi(req: Request, url: URL, parts: string[], env: Env, e
   if (req.method === "DELETE") {
     await env.FILES.delete(doc.r2_key);
     await env.DB.prepare(`DELETE FROM documents WHERE id = ?`).bind(doc.id).run();
+    return listing();
+  }
+  return json({ error: "Introuvable" }, 404);
+}
+
+async function mediaApi(req: Request, url: URL, parts: string[], env: Env, editor: User, gh: () => GitHub): Promise<Response> {
+  const listing = async (status = 200, extra: Record<string, unknown> = {}) => {
+    const { results } = await env.DB.prepare(`SELECT m.*, c.status AS site_status FROM media m LEFT JOIN conversations c ON c.id = m.site_conv ORDER BY COALESCE(m.taken_on, date(m.created_at / 1000, 'unixepoch')) DESC, m.created_at DESC`).all<gal.Media & { site_status: string | null }>();
+    return json({ media: results.map(({ r2_key, thumb_key, ...m }) => ({ ...m, thumb: !!thumb_key })), ...extra }, status);
+  };
+  if (parts.length === 1 && req.method === "GET") return listing();
+
+  if (parts.length === 1 && req.method === "POST") {
+    // Le fichier part tel quel dans R2, sans passer par la mémoire du Worker (vidéos).
+    const name = (url.searchParams.get("name") ?? "").trim().replace(/[\/\\]/g, "-").slice(0, 160);
+    const type = gal.typeOf(name);
+    if (!name || !type) return json({ error: "Type de fichier non accepté : photos JPEG, PNG ou WebP, vidéos MP4, MOV ou WebM." }, 415);
+    const size = Number(req.headers.get("Content-Length") ?? 0);
+    if (!size || !req.body) return json({ error: "Fichier vide." }, 400);
+    if (size > gal.MAX_SIZE) return json({ error: "Fichier trop lourd (95 Mo maximum) : pour une longue vidéo, réduisez-la ou déposez un lien dans Documents." }, 413);
+    const meta = gal.cleanMedia({ title: gal.titleFromName(name), credit: url.searchParams.get("credit") ?? "", tags: url.searchParams.get("tags") ?? "", taken_on: url.searchParams.get("taken_on") ?? "" });
+    if ("error" in meta) return json(meta, 400);
+    const id = crypto.randomUUID().replace(/-/g, "").slice(0, 12);
+    const key = `galerie/${id}.${gal.extOf(name)}`;
+    await env.FILES.put(key, req.body, { httpMetadata: { contentType: type.mime } });
+    const now = Date.now();
+    await env.DB.prepare(`INSERT INTO media (id, kind, name, title, mime, size, r2_key, width, height, taken_on, credit, tags, uploaded_by, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`)
+      .bind(id, type.kind, name, meta.title ?? "", type.mime, size, key, gal.dimension(url.searchParams.get("w")), gal.dimension(url.searchParams.get("h")), meta.taken_on ?? null, meta.credit ?? null, meta.tags ?? "", editor.email, now, now).run();
+    return listing(201, { id });
+  }
+
+  const m = parts[1] ? await env.DB.prepare(`SELECT * FROM media WHERE id = ?`).bind(parts[1]).first<gal.Media>() : null;
+  if (!m) return json({ error: "Photo introuvable." }, 404);
+
+  if (parts[2] === "file" && parts.length === 3 && req.method === "GET") {
+    // Les vidéos se lisent par morceaux (avance rapide) : on respecte l'en-tête Range.
+    const range = gal.parseRange(req.headers.get("Range"), m.size);
+    const obj = await env.FILES.get(m.r2_key, range ? { range } : {});
+    if (!obj) return json({ error: "Le fichier n'est plus disponible." }, 404);
+    const headers: Record<string, string> = {
+      "Content-Type": m.mime,
+      "Content-Disposition": disposition(url.searchParams.get("download") !== "1", m.name),
+      "Accept-Ranges": "bytes",
+      "Cache-Control": "private, max-age=3600",
+      "X-Content-Type-Options": "nosniff",
+      "Content-Security-Policy": "sandbox; default-src 'none'",
+    };
+    if (!range) return new Response(obj.body, { headers: { ...headers, "Content-Length": String(m.size) } });
+    return new Response(obj.body, { status: 206, headers: { ...headers, "Content-Length": String(range.length), "Content-Range": `bytes ${range.offset}-${range.offset + range.length - 1}/${m.size}` } });
+  }
+  if (parts[2] === "thumb" && parts.length === 3 && req.method === "GET") {
+    const obj = m.thumb_key ? await env.FILES.get(m.thumb_key) : null;
+    if (!obj) return json({ error: "Pas de vignette." }, 404);
+    return new Response(obj.body, { headers: { "Content-Type": "image/jpeg", "Cache-Control": "private, max-age=86400", "X-Content-Type-Options": "nosniff" } });
+  }
+
+  if (!gal.canEditMedia(editor, m)) return json({ error: "Seule la personne qui a déposé cette photo (ou un éditeur) peut la modifier." }, 403);
+
+  if (parts[2] === "thumb" && parts.length === 3 && req.method === "PUT") {
+    const bytes = new Uint8Array(await req.arrayBuffer());
+    if (bytes.length > gal.MAX_THUMB || !(bytes[0] === 0xff && bytes[1] === 0xd8)) return json({ error: "Vignette invalide." }, 400);
+    const key = `galerie/vignettes/${m.id}.jpg`;
+    await env.FILES.put(key, bytes, { httpMetadata: { contentType: "image/jpeg" } });
+    await env.DB.prepare(`UPDATE media SET thumb_key = ? WHERE id = ?`).bind(key, m.id).run();
+    return json({ ok: true });
+  }
+
+  if (parts[2] === "site" && parts.length === 3 && req.method === "POST") {
+    // Une conversation dédiée, comme si l'éditeur l'avait demandé à l'assistant : aperçu construit, puis bouton Publier.
+    if (!can(editor, "site")) return json({ error: "Mettre une photo sur le site est réservé aux éditeurs." }, 403);
+    if (m.kind !== "photo") return json({ error: "Seules les photos vont dans la galerie du site." }, 400);
+    const pending = m.site_conv ? await env.DB.prepare(`SELECT id, status FROM conversations WHERE id = ?`).bind(m.site_conv).first<{ id: string; status: string }>() : null;
+    if (pending && pending.status !== "abandonnee") return json({ error: pending.status === "publiee" ? "Cette photo est déjà sur le site." : "Cette photo est déjà en route vers le site.", conv: pending.id }, 409);
+    const bytes = new Uint8Array(await req.arrayBuffer());
+    if (bytes.length > gal.MAX_SITE_PHOTO) return json({ error: "Image trop lourde (4 Mo max après réduction)." }, 413);
+    if (!(bytes[0] === 0xff && bytes[1] === 0xd8)) return json({ error: "Seules les images JPEG sont acceptées." }, 415);
+    const conv = crypto.randomUUID().replace(/-/g, "").slice(0, 10);
+    const branch = branchFor(conv);
+    const path = gal.sitePath(m);
+    const label = m.title || "photo sans légende";
+    const now = Date.now();
+    await env.DB.prepare(`INSERT INTO conversations (id, title, author, status, branch, busy, created_at, updated_at) VALUES (?, ?, ?, 'ouverte', ?, 1, ?, ?)`)
+      .bind(conv, `Galerie : ${label}`.slice(0, 80), editor.email, branch, now, now).run();
+    try {
+      await gh().ensureBranch(branch);
+      await gh().writeFile(branch, path, bytes, `Galerie : ajout de ${path.split("/").pop()}`, commitAuthor(env, editor));
+      await env.DB.prepare(`UPDATE media SET site_path = ?, site_conv = ?, updated_at = ? WHERE id = ?`).bind(path, conv, now, m.id).run();
+      const dateFr = new Intl.DateTimeFormat("fr-BE", { weekday: "long", day: "numeric", month: "long", year: "numeric", timeZone: "Europe/Brussels" }).format(new Date());
+      const text = `[${editor.name}, ${dateFr}]\nMets cette photo de la photothèque dans la galerie du site : « ${label} »${m.credit ? ` (photo : ${m.credit})` : ""}. Elle est déjà déposée : ${path}. Vérifie l'aperçu, je publierai ensuite.`;
+      await addMessages(env, conv, [{ role: "user", author: editor.email, content: [{ type: "text", text }] }]);
+      await env.RUNNER.get(env.RUNNER.idFromName(conv)).start({ convId: conv, editorEmail: editor.email, editorName: editor.name });
+    } catch (e) {
+      await touch(env, conv, { busy: 0, status: "abandonnee" });
+      throw e;
+    }
+    return listing(201, { conv });
+  }
+
+  if (parts.length !== 2) return json({ error: "Introuvable" }, 404);
+  if (req.method === "PATCH") {
+    const input = gal.cleanMedia(await req.json());
+    if ("error" in input) return json(input, 400);
+    const keys = Object.keys(input) as (keyof typeof input)[];
+    if (keys.length) await env.DB.prepare(`UPDATE media SET ${keys.map((k) => `${k} = ?`).join(", ")}, updated_at = ? WHERE id = ?`).bind(...keys.map((k) => input[k] ?? null), Date.now(), m.id).run();
+    return listing();
+  }
+  if (req.method === "DELETE") {
+    await env.FILES.delete([m.r2_key, ...(m.thumb_key ? [m.thumb_key] : [])]);
+    await env.DB.prepare(`DELETE FROM media WHERE id = ?`).bind(m.id).run();
     return listing();
   }
   return json({ error: "Introuvable" }, 404);
